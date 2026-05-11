@@ -10,7 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2, GripVertical, Sparkles, Loader2, Wand2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 type QuestionType = "multiple_choice" | "true_false" | "short_answer" | "essay" | "file_upload";
 
@@ -167,9 +169,15 @@ export default function QuizBuilder() {
   const [lockdownMic, setLockdownMic] = useState(false);
 
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const createQuiz = useCreateQuiz();
   const createQuestion = useCreateQuestion();
+
+  const handleAIQuestions = (generated: QuestionDraft[]) => {
+    setQuestions(qs => [...qs, ...generated]);
+    setAiOpen(false);
+  };
 
   const addQuestion = () => {
     setQuestions(qs => [...qs, {
@@ -237,15 +245,29 @@ export default function QuizBuilder() {
         <span className="text-foreground font-medium">Quiz Builder</span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Quiz Builder</h1>
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Quiz Builder</h1>
+          <p className="text-sm text-muted-foreground mt-1">Build manually or let AI draft your questions, then refine.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setAiOpen(true)}
+            className="border-primary/30 text-primary hover:bg-primary/5 gap-1.5"
+            data-testid="ai-generate-btn"
+          >
+            <Sparkles className="h-4 w-4" />
+            Generate with AI
+          </Button>
           <Button variant="outline" onClick={() => saveQuiz(false)} disabled={createQuiz.isPending || !title.trim()}>Save Draft</Button>
-          <Button onClick={() => saveQuiz(true)} disabled={createQuiz.isPending || !title.trim()}>
+          <Button onClick={() => saveQuiz(true)} disabled={createQuiz.isPending || !title.trim()} className="gradient-primary text-white">
             {createQuiz.isPending ? "Saving..." : "Publish"}
           </Button>
         </div>
       </div>
+
+      <AIGenerateDialog open={aiOpen} onOpenChange={setAiOpen} onAccept={handleAIQuestions} courseTitle={title} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Settings panel */}
@@ -327,7 +349,15 @@ export default function QuizBuilder() {
               <CardContent className="py-16 text-center text-muted-foreground">
                 <BookOpenIcon className="h-10 w-10 mx-auto mb-3 opacity-20" />
                 <p className="font-medium">No questions yet</p>
-                <p className="text-sm mt-1">Click below to add your first question</p>
+                <p className="text-sm mt-1 mb-4">Add one manually, or let our AI assistant draft a full set for you.</p>
+                <Button
+                  size="sm"
+                  onClick={() => setAiOpen(true)}
+                  className="gradient-primary text-white gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Generate with AI
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -351,4 +381,233 @@ export default function QuizBuilder() {
 
 function BookOpenIcon({ className }: { className?: string }) {
   return <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>;
+}
+
+/* ─── AI Generation Dialog ─────────────────────────────────────────────────── */
+
+const QUESTION_TYPE_OPTIONS = [
+  { value: "multiple_choice", label: "Multiple Choice" },
+  { value: "true_false", label: "True / False" },
+  { value: "short_answer", label: "Short Answer" },
+  { value: "essay", label: "Essay" },
+] as const;
+
+function AIGenerateDialog({
+  open, onOpenChange, onAccept, courseTitle,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onAccept: (qs: QuestionDraft[]) => void;
+  courseTitle: string;
+}) {
+  const { toast } = useToast();
+  const [topic, setTopic] = useState("");
+  const [count, setCount] = useState(5);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(["multiple_choice", "true_false"]);
+  const [instructions, setInstructions] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<QuestionDraft[] | null>(null);
+
+  const toggleType = (t: string) => {
+    setSelectedTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  };
+
+  const reset = () => {
+    setTopic(""); setCount(5); setDifficulty("medium");
+    setSelectedTypes(["multiple_choice", "true_false"]); setInstructions("");
+    setPreview(null); setLoading(false);
+  };
+
+  const generate = async () => {
+    if (!topic.trim()) {
+      toast({ title: "Please enter a topic", variant: "destructive" });
+      return;
+    }
+    if (selectedTypes.length === 0) {
+      toast({ title: "Please select at least one question type", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/generate-questions", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: topic.trim(),
+          count,
+          difficulty,
+          questionTypes: selectedTypes,
+          courseContext: courseTitle ? `Quiz titled "${courseTitle}"` : "",
+          instructions: instructions.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? "AI generation failed", variant: "destructive" });
+        return;
+      }
+      const drafts: QuestionDraft[] = (data.questions ?? []).map((q: any) => ({
+        id: Math.random().toString(36).slice(2),
+        questionText: q.questionText ?? "",
+        questionType: q.questionType ?? "multiple_choice",
+        points: q.points ?? 1,
+        options: Array.isArray(q.options) && q.options.length ? q.options : ["", "", "", ""],
+        correctAnswer: q.correctAnswer ?? "",
+        explanation: q.explanation ?? "",
+      }));
+      setPreview(drafts);
+    } catch (e) {
+      toast({ title: "Network error contacting the AI assistant", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const accept = () => {
+    if (!preview) return;
+    onAccept(preview);
+    toast({ title: `Added ${preview.length} AI-generated questions` });
+    reset();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg gradient-primary text-white flex items-center justify-center">
+              <Wand2 className="h-4 w-4" />
+            </div>
+            AI Question Generator
+          </DialogTitle>
+          <DialogDescription>
+            Describe what the quiz should cover and our AI assistant will draft questions you can review, edit, and publish.
+          </DialogDescription>
+        </DialogHeader>
+
+        {!preview ? (
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Topic <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={topic}
+                onChange={e => setTopic(e.target.value)}
+                placeholder="e.g. The structure and bonding of organic molecules covered in Chapter 3"
+                rows={2}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Number of questions</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={count}
+                  onChange={e => setCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Difficulty</Label>
+                <Select value={difficulty} onValueChange={(v: any) => setDifficulty(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="easy">Easy — Recall</SelectItem>
+                    <SelectItem value="medium">Medium — Application</SelectItem>
+                    <SelectItem value="hard">Hard — Analysis</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Question types <span className="text-xs text-muted-foreground">(pick at least one)</span></Label>
+              <div className="grid grid-cols-2 gap-2">
+                {QUESTION_TYPE_OPTIONS.map(opt => {
+                  const active = selectedTypes.includes(opt.value);
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => toggleType(opt.value)}
+                      className={`text-left text-sm px-3 py-2 rounded-lg border transition-all ${
+                        active
+                          ? "border-primary bg-primary/5 text-primary font-semibold"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Additional instructions <span className="text-xs text-muted-foreground">(optional)</span></Label>
+              <Textarea
+                value={instructions}
+                onChange={e => setInstructions(e.target.value)}
+                placeholder="e.g. Focus on real-world examples, avoid trick questions, include one question on industrial applications"
+                rows={2}
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={generate} disabled={loading || !topic.trim()} className="gradient-primary text-white gap-1.5">
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</> : <><Sparkles className="h-4 w-4" /> Generate</>}
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-3 py-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Preview · {preview.length} questions drafted</p>
+              <Button variant="ghost" size="sm" onClick={() => setPreview(null)} className="text-xs">
+                ← Adjust prompt
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+              {preview.map((q, i) => (
+                <div key={q.id} className="border border-border rounded-lg p-3 bg-muted/30">
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="text-[10px] mt-0.5 capitalize">
+                      {q.questionType.replace(/_/g, " ")}
+                    </Badge>
+                    <p className="text-sm font-medium flex-1">{i + 1}. {q.questionText}</p>
+                    <span className="text-[10px] text-muted-foreground">{q.points}pt</span>
+                  </div>
+                  {q.questionType === "multiple_choice" && (
+                    <ul className="mt-2 ml-7 space-y-0.5 text-xs">
+                      {q.options.filter(Boolean).map((o, idx) => (
+                        <li key={idx} className={o === q.correctAnswer ? "text-emerald-700 font-semibold" : "text-muted-foreground"}>
+                          {String.fromCharCode(65 + idx)}. {o} {o === q.correctAnswer && "✓"}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {(q.questionType === "true_false" || q.questionType === "short_answer") && q.correctAnswer && (
+                    <p className="mt-1.5 ml-7 text-xs text-emerald-700">Answer: <span className="font-semibold">{q.correctAnswer}</span></p>
+                  )}
+                  {q.explanation && (
+                    <p className="mt-1.5 ml-7 text-xs text-muted-foreground italic">{q.explanation}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPreview(null)}>Discard</Button>
+              <Button onClick={accept} className="gradient-primary text-white gap-1.5">
+                <Plus className="h-4 w-4" /> Add {preview.length} questions
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }

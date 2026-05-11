@@ -13,6 +13,7 @@ import alertsRouter from "./alerts";
 import announcementsRouter from "./announcements";
 import fileSubmissionsRouter from "./file-submissions";
 import invitationsRouter from "./invitations";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(alertsRouter);
 router.use(announcementsRouter);
 router.use(fileSubmissionsRouter);
 router.use(invitationsRouter);
+router.use(aiRouter);
 
 export default router;
