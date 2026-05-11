@@ -2,8 +2,12 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
+
+const PgSession = connectPgSimple(session);
 
 const app: Express = express();
 
@@ -35,6 +39,10 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
+  store: new PgSession({
+    pool: pool as any,
+    tableName: "user_sessions",
+  }),
   secret: process.env.SESSION_SECRET ?? "ncst-lms-secret-dev",
   resave: false,
   saveUninitialized: false,
