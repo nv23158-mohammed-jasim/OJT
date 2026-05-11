@@ -49,9 +49,9 @@ function AddAnnouncementDialog({ courseId }: { courseId: number }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    createAnn.mutate({ data: { courseId, title, content, authorId: user!.id } } as any, {
+    createAnn.mutate({ courseId, data: { courseId, title, content, authorId: user!.id } } as any, {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["/api/courses", courseId, "announcements"] });
+        qc.invalidateQueries({ queryKey: [`/api/courses/${courseId}/announcements`] });
         setOpen(false); setTitle(""); setContent("");
       }
     });
@@ -83,9 +83,9 @@ function AddModuleDialog({ courseId }: { courseId: number }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    createModule.mutate({ data: { courseId, title, description } } as any, {
+    createModule.mutate({ courseId, data: { courseId, title, description } } as any, {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["/api/courses", courseId, "modules"] });
+        qc.invalidateQueries({ queryKey: [`/api/courses/${courseId}/modules`] });
         setOpen(false); setTitle(""); setDescription("");
       }
     });
@@ -110,41 +110,123 @@ function AddModuleDialog({ courseId }: { courseId: number }) {
 
 function AddFileDialog({ moduleId }: { moduleId: number }) {
   const [open, setOpen] = useState(false);
-  const [fileName, setFileName] = useState("");
+  const [mode, setMode] = useState<"upload" | "link">("upload");
   const [originalName, setOriginalName] = useState("");
   const [fileType, setFileType] = useState("pdf");
   const [url, setUrl] = useState("");
+  const [fileSize, setFileSize] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const createFile = useCreateFile();
   const qc = useQueryClient();
 
+  const MAX_BYTES = 8 * 1024 * 1024;
+
+  function reset() {
+    setOriginalName(""); setFileType("pdf"); setUrl(""); setFileSize(null); setError(null); setMode("upload");
+  }
+
+  function pickType(name: string) {
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    const known = ["pdf","docx","doc","pptx","ppt","xlsx","xls","png","jpg","jpeg","gif","webp","mp4","mp3","txt"];
+    return known.includes(ext) ? (ext === "jpeg" ? "jpg" : ext) : "other";
+  }
+
+  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setError(null);
+    if (f.size > MAX_BYTES) {
+      setError(`File too large (${(f.size / 1024 / 1024).toFixed(1)} MB). Max is 8 MB.`);
+      return;
+    }
+    setOriginalName(f.name);
+    setFileType(pickType(f.name));
+    setFileSize(f.size);
+    const reader = new FileReader();
+    reader.onload = () => setUrl(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => setError("Could not read file.");
+    reader.readAsDataURL(f);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    createFile.mutate({ data: { moduleId, fileName, originalName: originalName || fileName, fileType, url, uploadedBy: user!.id } } as any, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["/api/modules", moduleId, "files"] });
-        setOpen(false); setFileName(""); setOriginalName(""); setUrl("");
+    if (!url) { setError("Please choose a file or paste a link."); return; }
+    if (!originalName) { setError("Please provide a display name."); return; }
+    const fileName = originalName.replace(/[^a-z0-9._-]/gi, "_").toLowerCase();
+    createFile.mutate(
+      { data: { moduleId, fileName, originalName, fileType, fileSize: fileSize ?? undefined, url, uploadedBy: user!.id } } as any,
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: [`/api/modules/${moduleId}/files`] });
+          setOpen(false); reset();
+        },
+        onError: (err: any) => setError(err?.message ?? "Failed to upload file."),
       }
-    });
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" />Add File</Button>
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => e.stopPropagation()}>
+          <Plus className="h-3 w-3 mr-1" />Add File
+        </Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Add File</DialogTitle></DialogHeader>
+      <DialogContent onClick={(e) => e.stopPropagation()}>
+        <DialogHeader><DialogTitle>Add Material</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2"><Label>Display Name</Label><Input required value={originalName} onChange={e => setOriginalName(e.target.value)} placeholder="Lecture 1 - Introduction.pdf" /></div>
-          <div className="space-y-2"><Label>File Name (system)</Label><Input required value={fileName} onChange={e => setFileName(e.target.value)} placeholder="lecture1.pdf" /></div>
-          <div className="space-y-2"><Label>Type</Label>
-            <select className="w-full border border-input rounded-md px-3 py-2 text-sm" value={fileType} onChange={e => setFileType(e.target.value)}>
-              {["pdf","docx","doc","pptx","ppt","xlsx","xls","png","jpg","other"].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+          <div className="flex gap-2 border border-border rounded-md p-1 bg-muted/30">
+            <button type="button" onClick={() => setMode("upload")}
+              className={`flex-1 text-sm py-1.5 rounded ${mode === "upload" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>
+              Upload from device
+            </button>
+            <button type="button" onClick={() => setMode("link")}
+              className={`flex-1 text-sm py-1.5 rounded ${mode === "link" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>
+              External link
+            </button>
+          </div>
+
+          {mode === "upload" ? (
+            <div className="space-y-2">
+              <Label>Choose a file (max 8 MB)</Label>
+              <Input type="file" onChange={onFileChosen}
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mp3,.txt" />
+              {fileSize !== null && (
+                <p className="text-xs text-muted-foreground">Selected: {originalName} &bull; {formatBytes(fileSize)}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Link URL</Label>
+              <Input required={mode === "link"} value={url} onChange={e => setUrl(e.target.value)}
+                placeholder="https://drive.google.com/..." />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Display name shown to students</Label>
+            <Input required value={originalName} onChange={e => setOriginalName(e.target.value)}
+              placeholder="Lecture 1 - Introduction" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Type</Label>
+            <select className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background"
+              value={fileType} onChange={e => setFileType(e.target.value)}>
+              {["pdf","docx","doc","pptx","ppt","xlsx","xls","png","jpg","gif","webp","mp4","mp3","txt","other"].map(t =>
+                <option key={t} value={t}>{t.toUpperCase()}</option>
+              )}
             </select>
           </div>
-          <div className="space-y-2"><Label>URL</Label><Input required value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." /></div>
-          <DialogFooter><Button type="submit" disabled={createFile.isPending}>{createFile.isPending ? "Adding..." : "Add File"}</Button></DialogFooter>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <DialogFooter>
+            <Button type="submit" disabled={createFile.isPending || !url}>
+              {createFile.isPending ? "Adding..." : "Add to Module"}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
