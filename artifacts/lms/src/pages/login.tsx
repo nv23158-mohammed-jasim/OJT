@@ -38,7 +38,7 @@ export default function Login() {
           <CardHeader className="space-y-2 text-center border-b border-border pb-6">
             <CardTitle className="text-2xl font-bold tracking-tight">NCST Portal</CardTitle>
             <CardDescription className="text-base">
-              National College of Science and Technology
+              Nasser Centre for Science & Technology
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">

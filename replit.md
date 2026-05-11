@@ -1,6 +1,6 @@
 # NCST LMS
 
-A full-featured Learning Management System for the National College of Science and Technology — similar to Moodle/Canvas, built for students, teachers, and admins.
+A full-featured Learning Management System for the Nasser Centre for Science & Technology — similar to Moodle/Canvas, built for students, teachers, and admins.
 
 ## Run & Operate
 
