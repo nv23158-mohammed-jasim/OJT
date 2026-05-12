@@ -7,6 +7,7 @@ export * from "./quizzes";
 export * from "./attempts";
 export * from "./alerts";
 export * from "./announcements";
+export * from "./submission-slots";
 export * from "./file-submissions";
 export * from "./invitations";
 export * from "./assignments";

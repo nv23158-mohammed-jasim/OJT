@@ -1,33 +1,22 @@
 import React, { useState } from "react";
-import { useListUsers, useCreateUser, useDeleteUser, useListCourses, useCreateCourse, useUpdateCourse, useListAlerts, useResolveAlert, useCreateEnrollment } from "@workspace/api-client-react";
+import { useListUsers, useCreateUser, useDeleteUser, useListCourses, useCreateCourse, useUpdateCourse, useCreateEnrollment } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Trash2, Users, BookOpen, Bell, GraduationCap, Sparkles } from "lucide-react";
+import { Plus, Trash2, Users, BookOpen, GraduationCap, Sparkles } from "lucide-react";
 import BulkUserImport from "../components/bulk-user-import";
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-red-100 text-red-700",
   teacher: "bg-blue-100 text-blue-700",
   student: "bg-green-100 text-green-700",
-};
-
-const ALERT_COLORS: Record<string, string> = {
-  tab_switch: "bg-orange-100 text-orange-700",
-  noise_detected: "bg-yellow-100 text-yellow-700",
-  movement_detected: "bg-yellow-100 text-yellow-700",
-  force_submitted: "bg-red-100 text-red-700",
-  late_entry: "bg-amber-100 text-amber-700",
-  violation: "bg-red-100 text-red-700",
 };
 
 function AddUserDialog() {
@@ -166,9 +155,7 @@ function BulkImportDialog({ onComplete }: { onComplete: () => void }) {
 export default function Admin() {
   const { data: users, isLoading: usersLoading } = useListUsers();
   const { data: courses, isLoading: coursesLoading } = useListCourses();
-  const { data: alerts, isLoading: alertsLoading } = useListAlerts();
   const deleteUser = useDeleteUser();
-  const resolveAlert = useResolveAlert();
   const createEnrollment = useCreateEnrollment();
   const updateCourse = useUpdateCourse();
   const qc = useQueryClient();
@@ -178,21 +165,19 @@ export default function Admin() {
 
   const teachers = users?.filter((u: any) => u.role === "teacher") ?? [];
   const students = users?.filter((u: any) => u.role === "student") ?? [];
-  const unresolvedAlerts = alerts?.filter((a: any) => !a.resolved) ?? [];
 
   return (
     <div data-testid="admin-page" className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Admin Panel</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage users, courses, and monitor system activity.</p>
+        <p className="text-muted-foreground text-sm mt-1">Manage users, courses, and enrollments.</p>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {[
           { label: "Total Users", value: users?.length ?? "-", icon: Users, color: "text-blue-600" },
           { label: "Total Courses", value: courses?.length ?? "-", icon: BookOpen, color: "text-green-600" },
-          { label: "Unresolved Alerts", value: unresolvedAlerts.length, icon: Bell, color: "text-red-600" },
           { label: "Students", value: students.length, icon: GraduationCap, color: "text-purple-600" },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
@@ -213,9 +198,6 @@ export default function Admin() {
         <TabsList>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
-          <TabsTrigger value="alerts">
-            Alerts {unresolvedAlerts.length > 0 && <Badge variant="destructive" className="ml-1 h-4 text-xs px-1">{unresolvedAlerts.length}</Badge>}
-          </TabsTrigger>
           <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
         </TabsList>
 
@@ -254,7 +236,7 @@ export default function Admin() {
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
                             disabled={deleteUser.isPending}
                             onClick={() => {
-                              if (confirm(`Permanently delete ${u.name} (${u.email})?\n\nThis will also remove all of their enrollments, submissions, and grades. This cannot be undone.`)) {
+                              if (confirm(`Permanently delete ${u.name} (${u.email})?\n\nThis will also remove all of their enrollments and submissions. This cannot be undone.`)) {
                                 deleteUser.mutate({ id: u.id } as any, { onSuccess: () => qc.invalidateQueries() });
                               }
                             }}>
@@ -313,36 +295,6 @@ export default function Admin() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Alerts Tab */}
-        <TabsContent value="alerts" className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Unresolved Alerts</h2>
-          </div>
-          {alertsLoading && [1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-          {unresolvedAlerts.length === 0 && !alertsLoading && (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">No unresolved alerts.</CardContent></Card>
-          )}
-          {unresolvedAlerts.map((alert: any) => (
-            <Card key={alert.id}>
-              <CardContent className="py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ALERT_COLORS[alert.alertType] ?? "bg-gray-100 text-gray-700"}`}>
-                    {alert.alertType.replace(/_/g, " ")}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium">{alert.studentName}</p>
-                    <p className="text-xs text-muted-foreground">{alert.message} &bull; {new Date(alert.createdAt).toLocaleString()}</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" className="h-7 text-xs"
-                  onClick={() => resolveAlert.mutate({ id: alert.id, data: {} } as any, { onSuccess: () => qc.invalidateQueries() })}>
-                  Resolve
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
         </TabsContent>
 
         {/* Enrollments Tab */}

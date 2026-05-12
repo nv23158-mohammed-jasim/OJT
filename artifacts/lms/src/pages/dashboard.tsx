@@ -1,65 +1,14 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
-import { useListCourses, useListAlerts } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useListCourses, useListFileSubmissions } from "@workspace/api-client-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
-  BookOpen, Users, Bell, AlertTriangle, ChevronRight,
-  GraduationCap, FileText, BarChart3, Shield, Clock,
-  Calendar as CalendarIcon, ClipboardList, FileQuestion,
+  BookOpen, Users, ChevronRight, GraduationCap, FileText, BarChart3, Shield, Clock, CheckCircle, XCircle,
 } from "lucide-react";
-import { useUpcoming } from "../lib/api-extra";
-import { useLocation } from "wouter";
-
-function UpcomingWidget() {
-  const { data, isLoading } = useUpcoming(14);
-  const [, navigate] = useLocation();
-  if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <div>
-          <CardTitle className="text-base flex items-center gap-2"><CalendarIcon className="h-4 w-4" />Coming up</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">Due in the next 14 days</p>
-        </div>
-        <Link href="/calendar"><Button variant="ghost" size="sm" className="text-xs">View calendar →</Button></Link>
-      </CardHeader>
-      <CardContent>
-        {!data?.length ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nothing due. Enjoy the breathing room.</p>
-        ) : (
-          <div className="space-y-1.5">
-            {data.slice(0, 6).map((it: any) => {
-              const d = new Date(it.dueAt);
-              const overdue = d < new Date();
-              const Icon = it.kind === "quiz" ? FileQuestion : ClipboardList;
-              return (
-                <button key={`${it.kind}-${it.id}`}
-                  onClick={() => navigate(it.kind === "quiz" ? `/quiz/${it.id}` : `/assignments/${it.id}`)}
-                  className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/50 text-left transition-colors">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-                    ${it.kind === "quiz" ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-blue-600"}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{it.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{it.courseCode} &bull; {it.points} pts</p>
-                  </div>
-                  <div className={`text-xs font-semibold flex-shrink-0 ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
-                    {d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -85,9 +34,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {user.role !== "admin" && <UpcomingWidget />}
-
-      {user.role === "student" && <StudentDashboard userId={user.id} />}
+      {user.role === "student" && <StudentDashboard />}
       {user.role === "teacher" && <TeacherDashboard userId={user.id} />}
       {user.role === "admin" && <AdminDashboard />}
     </div>
@@ -95,20 +42,47 @@ export default function Dashboard() {
 }
 
 /* ─── STUDENT ─────────────────────────────────────────────────────────────── */
-function StudentDashboard({ userId }: { userId: number }) {
+function StudentDashboard() {
   const { data: courses, isLoading } = useListCourses({ query: { enabled: true } as any });
+  const { data: submissions } = useListFileSubmissions(undefined, { query: { enabled: true } as any });
 
-  const quickLinks = [
-    { label: "My Submissions", href: "/submissions", icon: FileText, desc: "Track file submission status" },
-    { label: "Browse Courses", href: "/courses", icon: BookOpen, desc: "View all available courses" },
-    { label: "Settings", href: "/settings", icon: Shield, desc: "Update your profile" },
-  ];
+  const subStats = {
+    pending: submissions?.filter(s => s.status === "pending").length ?? 0,
+    approved: submissions?.filter(s => s.status === "approved").length ?? 0,
+    rejected: submissions?.filter(s => s.status === "rejected" || s.status === "revision_requested").length ?? 0,
+  };
 
   return (
     <div className="space-y-8">
+      {/* Submission stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "Pending Review", value: subStats.pending, icon: Clock, color: "text-amber-600 bg-amber-50" },
+          { label: "Approved", value: subStats.approved, icon: CheckCircle, color: "text-emerald-600 bg-emerald-50" },
+          { label: "Needs Action", value: subStats.rejected, icon: XCircle, color: "text-red-600 bg-red-50" },
+        ].map(s => {
+          const Icon = s.icon;
+          return (
+            <Card key={s.label} className="border border-slate-200">
+              <CardContent className="p-4">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${s.color}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="text-2xl font-bold">{s.value}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
       {/* Quick links */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {quickLinks.map(l => {
+        {[
+          { label: "My Submissions", href: "/submissions", icon: FileText, desc: "Track file submission status" },
+          { label: "Browse Courses", href: "/courses", icon: BookOpen, desc: "Open a course to submit files" },
+          { label: "Settings", href: "/settings", icon: Shield, desc: "Update your profile" },
+        ].map(l => {
           const Icon = l.icon;
           return (
             <Link key={l.href} href={l.href}>
@@ -185,14 +159,12 @@ function StudentDashboard({ userId }: { userId: number }) {
 /* ─── TEACHER ─────────────────────────────────────────────────────────────── */
 function TeacherDashboard({ userId }: { userId: number }) {
   const { data: courses, isLoading } = useListCourses({ query: { enabled: true } as any });
+  const { data: submissions } = useListFileSubmissions(undefined, { query: { enabled: true } as any });
   const myCourses = courses?.filter(c => c.teacherId === userId) ?? [];
 
   const totalStudents = myCourses.reduce((s, c) => s + (c.enrollmentCount ?? 0), 0);
-
-  const quickLinks = [
-    { label: "My Panel", href: "/teacher", icon: GraduationCap, desc: "Manage courses & invitations" },
-    { label: "Review Submissions", href: "/submissions", icon: FileText, desc: "Approve or reject student files" },
-  ];
+  const myCourseIds = new Set(myCourses.map(c => c.id));
+  const pendingCount = submissions?.filter(s => myCourseIds.has(s.courseId) && s.status === "pending").length ?? 0;
 
   return (
     <div className="space-y-8">
@@ -202,7 +174,7 @@ function TeacherDashboard({ userId }: { userId: number }) {
           { label: "My Courses", value: myCourses.length, icon: BookOpen, color: "text-blue-600 bg-blue-50" },
           { label: "Total Students", value: totalStudents, icon: GraduationCap, color: "text-emerald-600 bg-emerald-50" },
           { label: "Active Courses", value: myCourses.filter(c => c.isActive).length, icon: BarChart3, color: "text-violet-600 bg-violet-50" },
-          { label: "Pending Reviews", value: "—", icon: Clock, color: "text-amber-600 bg-amber-50" },
+          { label: "Pending Reviews", value: pendingCount, icon: Clock, color: "text-amber-600 bg-amber-50" },
         ].map(s => {
           const Icon = s.icon;
           return (
@@ -221,7 +193,10 @@ function TeacherDashboard({ userId }: { userId: number }) {
 
       {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {quickLinks.map(l => {
+        {[
+          { label: "My Panel", href: "/teacher", icon: GraduationCap, desc: "Manage courses & invitations" },
+          { label: "Review Submissions", href: "/submissions", icon: FileText, desc: "Approve or reject student files" },
+        ].map(l => {
           const Icon = l.icon;
           return (
             <Link key={l.href} href={l.href}>
@@ -317,20 +292,18 @@ function TeacherDashboard({ userId }: { userId: number }) {
 
 /* ─── ADMIN ───────────────────────────────────────────────────────────────── */
 function AdminDashboard() {
-  const { data: alerts, isLoading: alertsLoading } = useListAlerts({ query: { enabled: true } as any });
   const { data: courses } = useListCourses({ query: { enabled: true } as any });
-  const unresolvedAlerts = alerts?.filter(a => !a.resolved) ?? [];
+  const { data: submissions } = useListFileSubmissions(undefined, { query: { enabled: true } as any });
 
   const stats = [
     { label: "Total Courses", value: courses?.length ?? "—", icon: BookOpen, color: "text-blue-600 bg-blue-50" },
     { label: "Active Courses", value: courses?.filter(c => c.isActive).length ?? "—", icon: BarChart3, color: "text-emerald-600 bg-emerald-50" },
-    { label: "Unresolved Alerts", value: unresolvedAlerts.length, icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
+    { label: "Pending Submissions", value: submissions?.filter(s => s.status === "pending").length ?? 0, icon: Clock, color: "text-amber-600 bg-amber-50" },
     { label: "Admin Panel", value: "→", icon: Users, color: "text-violet-600 bg-violet-50", href: "/admin" },
   ];
 
   return (
     <div className="space-y-8">
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map(s => {
           const Icon = s.icon;
@@ -351,64 +324,30 @@ function AdminDashboard() {
         })}
       </div>
 
-      {/* Alerts feed */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            Recent Integrity Alerts
-          </h2>
-          <Link href="/admin">
-            <Button variant="ghost" size="sm" className="text-xs gap-1">
-              View All <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </Link>
-        </div>
-
-        {alertsLoading ? (
-          <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
-        ) : unresolvedAlerts.length === 0 ? (
-          <Card className="border border-slate-200">
-            <CardContent className="flex items-center justify-center py-10 text-center">
-              <div>
-                <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-2">
-                  <Shield className="h-5 w-5 text-emerald-500" />
-                </div>
-                <p className="text-sm font-medium">All clear</p>
-                <p className="text-xs text-muted-foreground mt-0.5">No unresolved integrity alerts.</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Student</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Quiz</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Message</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {unresolvedAlerts.slice(0, 8).map(alert => (
-                  <tr key={alert.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-medium">{alert.studentName ?? "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{alert.quizTitle ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className="text-[10px] capitalize">
-                        {(alert.alertType as string).replace(/_/g, " ")}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell max-w-xs truncate">
-                      {alert.message}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Manage Users & Courses", href: "/admin", icon: Users, desc: "Full user and course administration" },
+          { label: "Review Submissions", href: "/submissions", icon: FileText, desc: "Approve or reject any submission" },
+          { label: "Browse Courses", href: "/courses", icon: BookOpen, desc: "View every course in the system" },
+        ].map(l => {
+          const Icon = l.icon;
+          return (
+            <Link key={l.href} href={l.href}>
+              <Card className="border border-slate-200 hover:border-primary/40 hover:shadow-sm transition-all cursor-pointer group">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold leading-none">{l.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{l.desc}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

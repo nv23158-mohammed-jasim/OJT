@@ -908,6 +908,7 @@ export const DeleteAnnouncementParams = zod.object({
  */
 export const ListFileSubmissionsQueryParams = zod.object({
   courseId: zod.coerce.number().optional(),
+  slotId: zod.coerce.number().optional(),
   status: zod
     .enum(["pending", "approved", "rejected", "revision_requested"])
     .optional(),
@@ -921,6 +922,8 @@ export const ListFileSubmissionsResponseItem = zod.object({
   courseId: zod.number(),
   courseTitle: zod.string().nullish(),
   courseCode: zod.string().nullish(),
+  slotId: zod.number().nullish(),
+  slotTitle: zod.string().nullish(),
   title: zod.string(),
   description: zod.string().nullish(),
   fileUrl: zod.string(),
@@ -944,6 +947,7 @@ export const ListFileSubmissionsResponse = zod.array(
  */
 export const CreateFileSubmissionBody = zod.object({
   courseId: zod.number(),
+  slotId: zod.number().optional(),
   title: zod.string(),
   description: zod.string().optional(),
   fileUrl: zod.string(),
@@ -967,6 +971,8 @@ export const GetFileSubmissionResponse = zod.object({
   courseId: zod.number(),
   courseTitle: zod.string().nullish(),
   courseCode: zod.string().nullish(),
+  slotId: zod.number().nullish(),
+  slotTitle: zod.string().nullish(),
   title: zod.string(),
   description: zod.string().nullish(),
   fileUrl: zod.string(),
@@ -1006,6 +1012,8 @@ export const UpdateFileSubmissionResponse = zod.object({
   courseId: zod.number(),
   courseTitle: zod.string().nullish(),
   courseCode: zod.string().nullish(),
+  slotId: zod.number().nullish(),
+  slotTitle: zod.string().nullish(),
   title: zod.string(),
   description: zod.string().nullish(),
   fileUrl: zod.string(),
@@ -1020,6 +1028,132 @@ export const UpdateFileSubmissionResponse = zod.object({
   reviewedAt: zod.coerce.date().nullish(),
   updatedAt: zod.coerce.date().optional(),
 });
+
+/**
+ * @summary List submission slots for a course
+ */
+export const ListSubmissionSlotsParams = zod.object({
+  courseId: zod.coerce.number(),
+});
+
+export const ListSubmissionSlotsResponseItem = zod.object({
+  id: zod.number(),
+  courseId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
+  allowResubmission: zod.boolean(),
+  createdBy: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  submissionCount: zod.number().optional(),
+  pendingCount: zod.number().optional(),
+  approvedCount: zod.number().optional(),
+  rejectedCount: zod.number().optional(),
+});
+export const ListSubmissionSlotsResponse = zod.array(
+  ListSubmissionSlotsResponseItem,
+);
+
+/**
+ * @summary Create a submission slot (teacher/admin only)
+ */
+export const CreateSubmissionSlotParams = zod.object({
+  courseId: zod.coerce.number(),
+});
+
+export const CreateSubmissionSlotBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
+  allowResubmission: zod.boolean().optional(),
+});
+
+export const GetSubmissionSlotParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetSubmissionSlotResponse = zod.object({
+  id: zod.number(),
+  courseId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
+  allowResubmission: zod.boolean(),
+  createdBy: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  submissionCount: zod.number().optional(),
+  pendingCount: zod.number().optional(),
+  approvedCount: zod.number().optional(),
+  rejectedCount: zod.number().optional(),
+});
+
+export const UpdateSubmissionSlotParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSubmissionSlotBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
+  allowResubmission: zod.boolean().optional(),
+});
+
+export const UpdateSubmissionSlotResponse = zod.object({
+  id: zod.number(),
+  courseId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  dueAt: zod.coerce.date().nullish(),
+  allowResubmission: zod.boolean(),
+  createdBy: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  submissionCount: zod.number().optional(),
+  pendingCount: zod.number().optional(),
+  approvedCount: zod.number().optional(),
+  rejectedCount: zod.number().optional(),
+});
+
+export const DeleteSubmissionSlotParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List submissions for a slot (own only for students)
+ */
+export const ListSlotSubmissionsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListSlotSubmissionsResponseItem = zod.object({
+  id: zod.number(),
+  studentId: zod.number(),
+  studentName: zod.string().nullish(),
+  studentEmail: zod.string().nullish(),
+  courseId: zod.number(),
+  courseTitle: zod.string().nullish(),
+  courseCode: zod.string().nullish(),
+  slotId: zod.number().nullish(),
+  slotTitle: zod.string().nullish(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  fileUrl: zod.string(),
+  fileName: zod.string(),
+  fileType: zod.string().nullish(),
+  fileSize: zod.number().nullish(),
+  status: zod.enum(["pending", "approved", "rejected", "revision_requested"]),
+  reviewerId: zod.number().nullish(),
+  reviewerName: zod.string().nullish(),
+  reviewComment: zod.string().nullish(),
+  submittedAt: zod.coerce.date(),
+  reviewedAt: zod.coerce.date().nullish(),
+  updatedAt: zod.coerce.date().optional(),
+});
+export const ListSlotSubmissionsResponse = zod.array(
+  ListSlotSubmissionsResponseItem,
+);
 
 /**
  * @summary Approve, reject, or request revision (teacher/admin only)
@@ -1041,6 +1175,8 @@ export const ReviewFileSubmissionResponse = zod.object({
   courseId: zod.number(),
   courseTitle: zod.string().nullish(),
   courseCode: zod.string().nullish(),
+  slotId: zod.number().nullish(),
+  slotTitle: zod.string().nullish(),
   title: zod.string(),
   description: zod.string().nullish(),
   fileUrl: zod.string(),

@@ -518,6 +518,10 @@ export interface FileSubmission {
   courseTitle?: string | null;
   /** @nullable */
   courseCode?: string | null;
+  /** @nullable */
+  slotId?: number | null;
+  /** @nullable */
+  slotTitle?: string | null;
   title: string;
   /** @nullable */
   description?: string | null;
@@ -542,6 +546,7 @@ export interface FileSubmission {
 
 export interface FileSubmissionInput {
   courseId: number;
+  slotId?: number;
   title: string;
   description?: string;
   fileUrl: string;
@@ -557,6 +562,33 @@ export interface FileSubmissionUpdate {
   fileName?: string;
   fileType?: string;
   fileSize?: number;
+}
+
+export interface SubmissionSlot {
+  id: number;
+  courseId: number;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  allowResubmission: boolean;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+  submissionCount?: number;
+  pendingCount?: number;
+  approvedCount?: number;
+  rejectedCount?: number;
+}
+
+export interface SubmissionSlotInput {
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  allowResubmission?: boolean;
 }
 
 export type FileSubmissionReviewInputStatus =
@@ -638,6 +670,7 @@ export type BulkCreateUsersBody = {
 
 export type ListFileSubmissionsParams = {
   courseId?: number;
+  slotId?: number;
   status?: ListFileSubmissionsStatus;
 };
 

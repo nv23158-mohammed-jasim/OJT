@@ -1,38 +1,33 @@
 import React, { useState } from "react";
-import { useRoute, Link, useLocation } from "wouter";
+import { useRoute, Link } from "wouter";
 import {
-  useGetCourse, useListModules, useListFiles, useListQuizzes,
-  useListAnnouncements, useCreateAnnouncement, useDeleteAnnouncement,
-  useCreateModule, useCreateFile, useDeleteFile, useDeleteQuiz
+  useGetCourse,
+  useListSubmissionSlots,
+  useCreateSubmissionSlot,
+  useDeleteSubmissionSlot,
+  useListSlotSubmissions,
+  useCreateFileSubmission,
+  useUpdateFileSubmission,
+  useReviewFileSubmission,
 } from "@workspace/api-client-react";
+import type { SubmissionSlot, FileSubmission, FileSubmissionReviewInputStatus } from "@workspace/api-client-react";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  FileText, ChevronDown, ChevronRight, Plus, Lock, Camera, Mic,
-  Clock, BookOpen, ExternalLink, Trash2, BarChart2, Monitor, File,
-  MessageSquare,
+  FileText, ChevronLeft, Plus, Upload, Trash2, ExternalLink, Clock,
+  CheckCircle, XCircle, RefreshCw, Pencil, FolderOpen, Users, BookOpen,
 } from "lucide-react";
-import { useAssignments, useCreateAssignment, useDeleteAssignment, useDiscussions } from "../lib/api-extra";
-
-function FileIcon({ fileType }: { fileType: string }) {
-  const t = fileType?.toLowerCase();
-  if (t === "pdf") return <FileText className="h-4 w-4 text-red-500" />;
-  if (t === "docx" || t === "doc") return <FileText className="h-4 w-4 text-blue-500" />;
-  if (t === "pptx" || t === "ppt") return <FileText className="h-4 w-4 text-orange-500" />;
-  if (t === "xlsx" || t === "xls") return <FileText className="h-4 w-4 text-green-500" />;
-  if (["png", "jpg", "jpeg", "gif", "webp"].includes(t)) return <File className="h-4 w-4 text-purple-500" />;
-  return <File className="h-4 w-4 text-gray-500" />;
-}
+import { format } from "date-fns";
 
 function formatBytes(bytes?: number | null) {
   if (!bytes) return "";
@@ -41,215 +36,459 @@ function formatBytes(bytes?: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function AddAnnouncementDialog({ courseId }: { courseId: number }) {
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [att, setAtt] = useState<{ url: string; name: string; type: string; size: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
-  const createAnn = useCreateAnnouncement();
-  const qc = useQueryClient();
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode; color: string }> = {
+  pending: { label: "Pending Review", variant: "secondary", icon: <Clock className="h-3 w-3" />, color: "text-amber-600 bg-amber-50 border-amber-200" },
+  approved: { label: "Approved", variant: "default", icon: <CheckCircle className="h-3 w-3" />, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  rejected: { label: "Rejected", variant: "destructive", icon: <XCircle className="h-3 w-3" />, color: "text-red-700 bg-red-50 border-red-200" },
+  revision_requested: { label: "Needs Revision", variant: "outline", icon: <RefreshCw className="h-3 w-3" />, color: "text-orange-700 bg-orange-50 border-orange-200" },
+};
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; if (!f) return;
-    if (f.size > 8 * 1024 * 1024) { setError(`File too large (${(f.size/1024/1024).toFixed(1)} MB). Max 8 MB.`); return; }
+export default function CourseDetail() {
+  const [, params] = useRoute("/courses/:id");
+  const courseId = params?.id ? parseInt(params.id, 10) : 0;
+  const { user } = useAuth();
+
+  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, { query: { enabled: !!courseId } as any });
+  const { data: slots, isLoading: slotsLoading, refetch: refetchSlots } = useListSubmissionSlots(courseId, { query: { enabled: !!courseId } as any });
+
+  const isStaff = user?.role === "admin" || (user?.role === "teacher" && course?.teacherId === user.id);
+
+  if (courseLoading) {
+    return <div className="space-y-4"><Skeleton className="h-12 w-1/2" /><Skeleton className="h-64 w-full" /></div>;
+  }
+  if (!course) {
+    return <p className="text-muted-foreground">Course not found.</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link href="/courses">
+          <Button variant="ghost" size="sm" className="gap-1 mb-3 -ml-2">
+            <ChevronLeft className="h-4 w-4" /> Back to courses
+          </Button>
+        </Link>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
+              <span className="font-mono text-sm bg-muted px-2 py-0.5 rounded">{course.code}</span>
+              <Badge variant={course.isActive ? "default" : "secondary"}>{course.isActive ? "Active" : "Inactive"}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {course.teacherName ? `Taught by ${course.teacherName}` : null}
+              {course.semester ? ` · ${course.semester} ${course.academicYear ?? ""}` : null}
+            </p>
+            {course.description && <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{course.description}</p>}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            <span>{course.enrollmentCount ?? 0} students</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-border" />
+
+      {/* Submission Slots Section — the only section in a course */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-primary" />
+              Submission Slots
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {isStaff
+                ? "Create slots for students to upload files. You'll review each submission."
+                : "Upload your files into the slots your teacher has set up."}
+            </p>
+          </div>
+          {isStaff && <CreateSlotDialog courseId={courseId} onCreated={refetchSlots} />}
+        </div>
+
+        {slotsLoading ? (
+          <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>
+        ) : !slots?.length ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <FolderOpen className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="font-medium">No submission slots yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isStaff
+                  ? "Click \"Add Slot\" above to create your first submission slot."
+                  : "Your teacher hasn't created any slots yet. Check back soon."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {slots.map(slot => (
+              <SlotCard
+                key={slot.id}
+                slot={slot}
+                courseId={courseId}
+                isStaff={!!isStaff}
+                onChanged={refetchSlots}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* ─── Slot Card ─────────────────────────────────────────────────────────── */
+function SlotCard({ slot, courseId, isStaff, onChanged }: {
+  slot: SubmissionSlot;
+  courseId: number;
+  isStaff: boolean;
+  onChanged: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const deleteSlot = useDeleteSubmissionSlot();
+
+  const overdue = slot.dueAt && new Date(slot.dueAt) < new Date();
+
+  const handleDelete = () => {
+    if (!confirm(`Delete slot "${slot.title}"? All submissions to this slot will also be removed.`)) return;
+    deleteSlot.mutate({ id: slot.id }, {
+      onSuccess: () => { toast({ title: "Slot deleted" }); onChanged(); },
+      onError: (err: any) => toast({ title: "Failed", description: err?.message ?? "Could not delete slot", variant: "destructive" }),
+    });
+  };
+
+  return (
+    <Card className="border border-border">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Upload className="h-4 w-4 text-primary" />
+              {slot.title}
+            </CardTitle>
+            {slot.description && (
+              <CardDescription className="mt-1.5">{slot.description}</CardDescription>
+            )}
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+              {slot.dueAt && (
+                <span className={`flex items-center gap-1 ${overdue ? "text-destructive font-medium" : ""}`}>
+                  <Clock className="h-3 w-3" />
+                  Due {format(new Date(slot.dueAt), "MMM d, yyyy 'at' h:mm a")}
+                  {overdue && " (overdue)"}
+                </span>
+              )}
+              <span>Resubmission {slot.allowResubmission ? "allowed" : "not allowed"}</span>
+              {isStaff && (
+                <>
+                  <span>·</span>
+                  <span>{slot.submissionCount ?? 0} submissions</span>
+                  {(slot.pendingCount ?? 0) > 0 && (
+                    <Badge variant="secondary" className="text-[10px] gap-1">
+                      <Clock className="h-3 w-3" />
+                      {slot.pendingCount} pending
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
+              {expanded ? "Hide" : isStaff ? "View Submissions" : "Open"}
+            </Button>
+            {isStaff && (
+              <Button variant="ghost" size="sm" onClick={handleDelete} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="pt-0">
+          <div className="border-t border-border -mx-6 px-6 pt-4">
+            {isStaff
+              ? <SlotReviewPanel slot={slot} />
+              : <SlotStudentPanel slot={slot} courseId={courseId} userId={user!.id} />
+            }
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+/* ─── Student panel: upload form + your submissions ─────────────────────── */
+function SlotStudentPanel({ slot, courseId, userId }: { slot: SubmissionSlot; courseId: number; userId: number }) {
+  const { data: subs, refetch, isLoading } = useListSlotSubmissions(slot.id, { query: { enabled: true } as any });
+  const create = useCreateFileSubmission();
+  const update = useUpdateFileSubmission();
+  const { toast } = useToast();
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<{ url: string; name: string; type: string; size: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const myLatest = subs?.[subs.length - 1] ?? null;
+  // First submission is always allowed; further submissions only if the slot allows resubmission.
+  const canSubmit = !myLatest || slot.allowResubmission;
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) {
+      setError(`File too large (${(f.size/1024/1024).toFixed(1)} MB). Max 8 MB.`);
+      return;
+    }
     setError(null);
     const ext = f.name.split(".").pop()?.toLowerCase() ?? "other";
     const r = new FileReader();
-    r.onload = () => setAtt({ url: typeof r.result === "string" ? r.result : "", name: f.name, type: ext, size: f.size });
+    r.onload = () => setFile({ url: typeof r.result === "string" ? r.result : "", name: f.name, type: ext, size: f.size });
     r.readAsDataURL(f);
+    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
   }
 
-  function submit(e: React.FormEvent) {
+  function reset() {
+    setTitle(""); setDescription(""); setFile(null); setError(null); setEditingId(null);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    createAnn.mutate({ courseId, data: {
-      courseId, title, content, authorId: user!.id,
-      attachmentUrl: att?.url ?? null, attachmentName: att?.name ?? null,
-      attachmentType: att?.type ?? null, attachmentSize: att?.size ?? null,
-    } } as any, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: [`/api/courses/${courseId}/announcements`] });
-        setOpen(false); setTitle(""); setContent(""); setAtt(null); setError(null);
-      },
-      onError: (err: any) => setError(err?.message ?? "Failed to post."),
-    });
+    if (!file || !title) { setError("Please pick a file and give it a title."); return; }
+    const payload = {
+      courseId,
+      slotId: slot.id,
+      title,
+      description,
+      fileUrl: file.url,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    };
+    if (editingId) {
+      update.mutate({ id: editingId, data: payload } as any, {
+        onSuccess: () => { reset(); refetch(); toast({ title: "Submission updated" }); },
+        onError: (err: any) => setError(err?.response?.data?.error ?? "Failed to update."),
+      });
+    } else {
+      create.mutate({ data: payload } as any, {
+        onSuccess: () => { reset(); refetch(); toast({ title: "File submitted", description: "Your teacher will review it shortly." }); },
+        onError: (err: any) => setError(err?.response?.data?.error ?? "Failed to submit."),
+      });
+    }
+  }
+
+  function startEdit(sub: FileSubmission) {
+    setEditingId(sub.id);
+    setTitle(sub.title);
+    setDescription(sub.description ?? "");
+    setFile({ url: sub.fileUrl, name: sub.fileName, type: sub.fileType ?? "", size: sub.fileSize ?? 0 });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" data-testid="add-announcement-btn"><Plus className="h-4 w-4 mr-1" />Post Announcement</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>New Announcement</DialogTitle></DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2"><Label>Title</Label><Input required value={title} onChange={e => setTitle(e.target.value)} placeholder="Announcement title" /></div>
-          <div className="space-y-2"><Label>Content</Label><Textarea required value={content} onChange={e => setContent(e.target.value)} rows={4} placeholder="Write your announcement..." /></div>
+    <div className="space-y-5">
+      {/* My submissions */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Your submissions</p>
+        {isLoading ? (
+          <Skeleton className="h-16 rounded-lg" />
+        ) : !subs?.length ? (
+          <p className="text-sm text-muted-foreground italic">You haven't submitted anything yet.</p>
+        ) : (
           <div className="space-y-2">
-            <Label>Attach a file (optional, max 8 MB)</Label>
-            <Input type="file" onChange={onFile} />
-            {att && <p className="text-xs text-muted-foreground">Attached: {att.name} &bull; {formatBytes(att.size)}</p>}
+            {subs.map(s => {
+              const cfg = statusConfig[s.status];
+              return (
+                <div key={s.id} className={`flex items-start gap-3 p-3 rounded-lg border ${cfg.color}`}>
+                  <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium truncate">{s.title}</span>
+                      <Badge variant={cfg.variant} className="gap-1 text-[10px]">{cfg.icon}{cfg.label}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {s.fileName} · {formatBytes(s.fileSize)} · Submitted {format(new Date(s.submittedAt), "MMM d, h:mm a")}
+                    </p>
+                    {s.reviewComment && (
+                      <p className="text-xs mt-1 italic">"{s.reviewComment}"{s.reviewerName && ` — ${s.reviewerName}`}</p>
+                    )}
+                  </div>
+                  <a href={s.fileUrl} download={s.fileName} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                    <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                  </a>
+                  {(s.status === "pending" ||
+                    ((s.status === "rejected" || s.status === "revision_requested") && slot.allowResubmission)) && (
+                    <Button variant="ghost" size="sm" onClick={() => startEdit(s)} className="flex-shrink-0">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
           </div>
+        )}
+      </div>
+
+      {/* Upload form */}
+      {canSubmit && (
+        <form onSubmit={handleSubmit} className="space-y-3 p-4 border border-dashed border-border rounded-lg bg-muted/30">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {editingId ? "Replace your submission" : myLatest ? "Submit again" : "Upload your file"}
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Title</Label>
+              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="What is this submission?" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">File (max 8 MB)</Label>
+              <Input type="file" onChange={onFileChange} required={!editingId && !file} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notes (optional)</Label>
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Anything your teacher should know" />
+          </div>
+          {file && (
+            <p className="text-xs text-muted-foreground">Ready: <span className="font-medium">{file.name}</span> · {formatBytes(file.size)}</p>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter><Button type="submit" disabled={createAnn.isPending}>{createAnn.isPending ? "Posting..." : "Post"}</Button></DialogFooter>
+          <div className="flex justify-end gap-2">
+            {editingId && <Button type="button" variant="ghost" size="sm" onClick={reset}>Cancel</Button>}
+            <Button type="submit" size="sm" disabled={create.isPending || update.isPending || !file || !title}>
+              <Upload className="h-3.5 w-3.5 mr-1.5" />
+              {create.isPending || update.isPending ? "Submitting…" : editingId ? "Update Submission" : "Submit File"}
+            </Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      )}
+      {!canSubmit && (
+        <p className="text-sm text-muted-foreground italic">
+          Resubmissions are not allowed for this slot.
+        </p>
+      )}
+    </div>
   );
 }
 
-function AddModuleDialog({ courseId }: { courseId: number }) {
+/* ─── Reviewer panel: list + review action ───────────────────────────────── */
+function SlotReviewPanel({ slot }: { slot: SubmissionSlot }) {
+  const { data: subs, refetch, isLoading } = useListSlotSubmissions(slot.id, { query: { enabled: true } as any });
+  const [reviewing, setReviewing] = useState<FileSubmission | null>(null);
+
+  if (isLoading) return <Skeleton className="h-24 rounded-lg" />;
+  if (!subs?.length) return <p className="text-sm text-muted-foreground italic">No submissions yet.</p>;
+
+  return (
+    <div className="space-y-2">
+      {subs.map(s => {
+        const cfg = statusConfig[s.status];
+        return (
+          <div key={s.id} className={`flex items-start gap-3 p-3 rounded-lg border ${cfg.color}`}>
+            <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium">{s.studentName ?? "Unknown student"}</span>
+                <Badge variant={cfg.variant} className="gap-1 text-[10px]">{cfg.icon}{cfg.label}</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                "{s.title}" · {s.fileName} · {formatBytes(s.fileSize)} · {format(new Date(s.submittedAt), "MMM d, h:mm a")}
+              </p>
+              {s.description && <p className="text-xs text-muted-foreground italic mt-1">"{s.description}"</p>}
+              {s.reviewComment && (
+                <p className="text-xs mt-1"><span className="font-medium">Your note:</span> {s.reviewComment}</p>
+              )}
+            </div>
+            <a href={s.fileUrl} download={s.fileName} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+              <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
+            </a>
+            <Button size="sm" variant="outline" onClick={() => setReviewing(s)} className="flex-shrink-0">
+              {s.status === "pending" ? "Review" : "Re-review"}
+            </Button>
+          </div>
+        );
+      })}
+      {reviewing && (
+        <ReviewDialog
+          submission={reviewing}
+          onClose={() => setReviewing(null)}
+          onDone={() => { setReviewing(null); refetch(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Create Slot Dialog ─────────────────────────────────────────────────── */
+function CreateSlotDialog({ courseId, onCreated }: { courseId: number; onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const createModule = useCreateModule();
-  const qc = useQueryClient();
+  const [dueAt, setDueAt] = useState("");
+  const [allowResubmission, setAllowResubmission] = useState(true);
+  const create = useCreateSubmissionSlot();
+  const { toast } = useToast();
+
+  function reset() { setTitle(""); setDescription(""); setDueAt(""); setAllowResubmission(true); }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    createModule.mutate({ courseId, data: { courseId, title, description } } as any, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: [`/api/courses/${courseId}/modules`] });
-        setOpen(false); setTitle(""); setDescription("");
-      }
+    create.mutate({
+      courseId,
+      data: {
+        title,
+        description: description || null,
+        dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+        allowResubmission,
+      } as any,
+    }, {
+      onSuccess: () => { setOpen(false); reset(); onCreated(); toast({ title: "Slot created" }); },
+      onError: (err: any) => toast({ title: "Failed", description: err?.message ?? "Could not create slot", variant: "destructive" }),
     });
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" data-testid="add-module-btn"><Plus className="h-4 w-4 mr-1" />Add Module</Button>
+        <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Add Slot</Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>New Module</DialogTitle></DialogHeader>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Submission Slot</DialogTitle>
+          <DialogDescription>
+            Students will see this slot inside the course and upload their files into it.
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2"><Label>Title</Label><Input required value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Week 1: Introduction" /></div>
-          <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} /></div>
-          <DialogFooter><Button type="submit" disabled={createModule.isPending}>{createModule.isPending ? "Creating..." : "Create Module"}</Button></DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function AddFileDialog({ moduleId }: { moduleId: number }) {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"upload" | "link">("upload");
-  const [originalName, setOriginalName] = useState("");
-  const [fileType, setFileType] = useState("pdf");
-  const [url, setUrl] = useState("");
-  const [fileSize, setFileSize] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
-  const createFile = useCreateFile();
-  const qc = useQueryClient();
-
-  const MAX_BYTES = 8 * 1024 * 1024;
-
-  function reset() {
-    setOriginalName(""); setFileType("pdf"); setUrl(""); setFileSize(null); setError(null); setMode("upload");
-  }
-
-  function pickType(name: string) {
-    const ext = name.split(".").pop()?.toLowerCase() ?? "";
-    const known = ["pdf","docx","doc","pptx","ppt","xlsx","xls","png","jpg","jpeg","gif","webp","mp4","mp3","txt"];
-    return known.includes(ext) ? (ext === "jpeg" ? "jpg" : ext) : "other";
-  }
-
-  function onFileChosen(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setError(null);
-    if (f.size > MAX_BYTES) {
-      setError(`File too large (${(f.size / 1024 / 1024).toFixed(1)} MB). Max is 8 MB.`);
-      return;
-    }
-    setOriginalName(f.name);
-    setFileType(pickType(f.name));
-    setFileSize(f.size);
-    const reader = new FileReader();
-    reader.onload = () => setUrl(typeof reader.result === "string" ? reader.result : "");
-    reader.onerror = () => setError("Could not read file.");
-    reader.readAsDataURL(f);
-  }
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!url) { setError("Please choose a file or paste a link."); return; }
-    if (!originalName) { setError("Please provide a display name."); return; }
-    const fileName = originalName.replace(/[^a-z0-9._-]/gi, "_").toLowerCase();
-    createFile.mutate(
-      { data: { moduleId, fileName, originalName, fileType, fileSize: fileSize ?? undefined, url, uploadedBy: user!.id } } as any,
-      {
-        onSuccess: () => {
-          qc.invalidateQueries({ queryKey: [`/api/modules/${moduleId}/files`] });
-          setOpen(false); reset();
-        },
-        onError: (err: any) => setError(err?.message ?? "Failed to upload file."),
-      }
-    );
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => e.stopPropagation()}>
-          <Plus className="h-3 w-3 mr-1" />Add File
-        </Button>
-      </DialogTrigger>
-      <DialogContent onClick={(e) => e.stopPropagation()}>
-        <DialogHeader><DialogTitle>Add Material</DialogTitle></DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="flex gap-2 border border-border rounded-md p-1 bg-muted/30">
-            <button type="button" onClick={() => setMode("upload")}
-              className={`flex-1 text-sm py-1.5 rounded ${mode === "upload" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>
-              Upload from device
-            </button>
-            <button type="button" onClick={() => setMode("link")}
-              className={`flex-1 text-sm py-1.5 rounded ${mode === "link" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>
-              External link
-            </button>
+          <div className="space-y-1.5">
+            <Label>Title *</Label>
+            <Input required value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Week 1 OJT Report" />
           </div>
-
-          {mode === "upload" ? (
-            <div className="space-y-2">
-              <Label>Choose a file (max 8 MB)</Label>
-              <Input type="file" onChange={onFileChosen}
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mp3,.txt" />
-              {fileSize !== null && (
-                <p className="text-xs text-muted-foreground">Selected: {originalName} &bull; {formatBytes(fileSize)}</p>
-              )}
+          <div className="space-y-1.5">
+            <Label>Instructions</Label>
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="What should students submit?" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Due date (optional)</Label>
+            <Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <Label className="text-sm">Allow resubmission</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Students can replace their file if rejected.</p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>Link URL</Label>
-              <Input required={mode === "link"} value={url} onChange={e => setUrl(e.target.value)}
-                placeholder="https://drive.google.com/..." />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Display name shown to students</Label>
-            <Input required value={originalName} onChange={e => setOriginalName(e.target.value)}
-              placeholder="Lecture 1 - Introduction" />
+            <Switch checked={allowResubmission} onCheckedChange={setAllowResubmission} />
           </div>
-
-          <div className="space-y-2">
-            <Label>Type</Label>
-            <select className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background"
-              value={fileType} onChange={e => setFileType(e.target.value)}>
-              {["pdf","docx","doc","pptx","ppt","xlsx","xls","png","jpg","gif","webp","mp4","mp3","txt","other"].map(t =>
-                <option key={t} value={t}>{t.toUpperCase()}</option>
-              )}
-            </select>
-          </div>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
           <DialogFooter>
-            <Button type="submit" disabled={createFile.isPending || !url}>
-              {createFile.isPending ? "Adding..." : "Add to Module"}
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={create.isPending || !title}>
+              {create.isPending ? "Creating…" : "Create Slot"}
             </Button>
           </DialogFooter>
         </form>
@@ -258,384 +497,67 @@ function AddFileDialog({ moduleId }: { moduleId: number }) {
   );
 }
 
-function ModuleRow({ module, canEdit }: { module: any; canEdit: boolean }) {
-  const [open, setOpen] = useState(true);
-  const { data: files, isLoading } = useListFiles(module.id, { query: { enabled: true } as any });
-  const deleteFile = useDeleteFile();
-  const qc = useQueryClient();
+/* ─── Review Dialog ──────────────────────────────────────────────────────── */
+function ReviewDialog({ submission, onClose, onDone }: {
+  submission: FileSubmission;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [status, setStatus] = useState<string>(submission.status === "pending" ? "" : submission.status);
+  const [comment, setComment] = useState(submission.reviewComment ?? "");
+  const review = useReviewFileSubmission();
+  const { toast } = useToast();
 
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="border border-border rounded-lg overflow-hidden">
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between px-4 py-3 bg-card cursor-pointer hover:bg-muted/50">
-            <div className="flex items-center gap-3">
-              {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-              <div>
-                <p className="font-semibold text-sm">{module.title}</p>
-                {module.description && <p className="text-xs text-muted-foreground">{module.description}</p>}
-              </div>
-            </div>
-            {canEdit && <AddFileDialog moduleId={module.id} />}
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="divide-y divide-border bg-muted/20">
-            {isLoading && <div className="px-4 py-3 text-sm text-muted-foreground">Loading files...</div>}
-            {files?.length === 0 && <div className="px-4 py-3 text-sm text-muted-foreground italic">No files in this module.</div>}
-            {files?.map((file: any) => (
-              <div key={file.id} className="flex items-center justify-between px-4 py-2.5 group">
-                <div className="flex items-center gap-3">
-                  <FileIcon fileType={file.fileType} />
-                  <div>
-                    <p className="text-sm font-medium">{file.originalName}</p>
-                    <p className="text-xs text-muted-foreground">{file.fileType?.toUpperCase()} {formatBytes(file.fileSize)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <a href={file.url} target="_blank" rel="noopener noreferrer">
-                    <Button size="sm" variant="outline" className="h-7 text-xs"><ExternalLink className="h-3 w-3 mr-1" />Open</Button>
-                  </a>
-                  {canEdit && (
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive opacity-0 group-hover:opacity-100"
-                      onClick={() => deleteFile.mutate({ id: file.id } as any, { onSuccess: () => qc.invalidateQueries() })}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
-  );
-}
-
-export default function CourseDetail() {
-  const [, params] = useRoute("/courses/:id");
-  const courseId = params?.id ? parseInt(params.id) : 0;
-  const [, navigate] = useLocation();
-  const { user } = useAuth();
-  const isTeacher = user?.role === "teacher" || user?.role === "admin";
-
-  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, { query: { enabled: !!courseId } as any });
-  const { data: modules, isLoading: modulesLoading } = useListModules(courseId, { query: { enabled: !!courseId } as any });
-  const { data: quizzes, isLoading: quizzesLoading } = useListQuizzes(courseId, { query: { enabled: !!courseId } as any });
-  const { data: announcements, isLoading: annsLoading } = useListAnnouncements(courseId, { query: { enabled: !!courseId } as any });
-  const deleteAnn = useDeleteAnnouncement();
-  const deleteQuiz = useDeleteQuiz();
-  const qc = useQueryClient();
-
-  if (courseLoading) {
-    return <div className="space-y-4"><Skeleton className="h-10 w-2/3" /><Skeleton className="h-64 w-full" /></div>;
-  }
-
-  if (!course) {
-    return <div className="text-center py-20 text-muted-foreground">Course not found.</div>;
-  }
-
-  return (
-    <div data-testid="course-detail-page" className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/courses" className="hover:text-foreground">Courses</Link>
-        <span>/</span>
-        <span className="text-foreground font-medium">{course.title}</span>
-      </div>
-
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
-            <Badge variant={course.isActive ? "default" : "secondary"}>{course.isActive ? "Active" : "Inactive"}</Badge>
-          </div>
-          <p className="text-muted-foreground">{course.code} &bull; {course.teacherName} &bull; {course.semester} {course.academicYear}</p>
-          {course.description && <p className="text-sm mt-2 text-muted-foreground max-w-2xl">{course.description}</p>}
-        </div>
-        {isTeacher && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate(`/courses/${courseId}/grades`)}>
-              <BarChart2 className="h-4 w-4 mr-1" />Grades
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/courses/${courseId}/proctor`)}>
-              <Monitor className="h-4 w-4 mr-1" />Proctor
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="materials">Materials</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments</TabsTrigger>
-          <TabsTrigger value="quizzes">Quizzes & Exams</TabsTrigger>
-          <TabsTrigger value="discussions">Discussions</TabsTrigger>
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Announcements</h2>
-            {isTeacher && <AddAnnouncementDialog courseId={courseId} />}
-          </div>
-          {annsLoading && [1,2].map(i => <Skeleton key={i} className="h-24 w-full" />)}
-          {announcements?.length === 0 && (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">No announcements yet.</CardContent></Card>
-          )}
-          {announcements?.map((ann: any) => (
-            <Card key={ann.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base">{ann.title}</CardTitle>
-                    <CardDescription className="text-xs mt-0.5">
-                      {ann.authorName} &bull; {new Date(ann.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                    </CardDescription>
-                  </div>
-                  {isTeacher && (
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive"
-                      onClick={() => deleteAnn.mutate({ id: ann.id } as any, { onSuccess: () => qc.invalidateQueries() })}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm whitespace-pre-wrap">{ann.content}</p>
-                {ann.attachmentUrl && (
-                  <a href={ann.attachmentUrl} download={ann.attachmentName} target="_blank" rel="noopener noreferrer" className="inline-block">
-                    <Button size="sm" variant="outline" className="h-7 text-xs">
-                      <FileText className="h-3 w-3 mr-1" />{ann.attachmentName} <ExternalLink className="h-3 w-3 ml-1.5" />
-                    </Button>
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-
-        {/* Materials Tab */}
-        <TabsContent value="materials" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Course Materials</h2>
-            {isTeacher && <AddModuleDialog courseId={courseId} />}
-          </div>
-          {modulesLoading && [1,2].map(i => <Skeleton key={i} className="h-24 w-full" />)}
-          {modules?.length === 0 && (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">No modules yet. {isTeacher && "Add a module to get started."}</CardContent></Card>
-          )}
-          <div className="space-y-3">
-            {modules?.map((module: any) => (
-              <ModuleRow key={module.id} module={module} canEdit={isTeacher} />
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* Quizzes Tab */}
-        <TabsContent value="quizzes" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Quizzes &amp; Exams</h2>
-            {isTeacher && (
-              <Button size="sm" onClick={() => navigate(`/courses/${courseId}/quiz-builder`)} data-testid="create-quiz-btn">
-                <Plus className="h-4 w-4 mr-1" />Build Quiz
-              </Button>
-            )}
-          </div>
-          {quizzesLoading && [1,2].map(i => <Skeleton key={i} className="h-20 w-full" />)}
-          {quizzes?.length === 0 && (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">No quizzes published yet.</CardContent></Card>
-          )}
-          <div className="space-y-3">
-            {quizzes?.map((quiz: any) => (
-              <Card key={quiz.id} className="hover:border-primary/30 transition-colors">
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm">{quiz.title}</span>
-                          <Badge variant={quiz.quizType === "exam" ? "destructive" : "secondary"} className="text-xs">
-                            {quiz.quizType === "exam" ? "Exam" : "Quiz"}
-                          </Badge>
-                          {!quiz.isPublished && <Badge variant="outline" className="text-xs">Draft</Badge>}
-                          {quiz.isLockdown && <span title="Lockdown"><Lock className="h-3 w-3 text-amber-600" /></span>}
-                          {quiz.lockdownCamera && <span title="Camera"><Camera className="h-3 w-3 text-amber-600" /></span>}
-                          {quiz.lockdownMic && <span title="Microphone"><Mic className="h-3 w-3 text-amber-600" /></span>}
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          {quiz.durationMinutes && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{quiz.durationMinutes} min</span>}
-                          <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />{quiz.questionCount ?? 0} questions</span>
-                          <span>{quiz.totalPoints ?? 0} pts</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!isTeacher && quiz.isPublished && (
-                        <Button size="sm" onClick={() => navigate(`/quiz/${quiz.id}`)} data-testid={`start-quiz-${quiz.id}`}>
-                          Start
-                        </Button>
-                      )}
-                      {!isTeacher && (
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/quiz/${quiz.id}/results`)}>Results</Button>
-                      )}
-                      {isTeacher && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => navigate(`/quiz/${quiz.id}/results`)}>Submissions</Button>
-                          <Button size="sm" variant="ghost" className="text-destructive"
-                            onClick={() => deleteQuiz.mutate({ id: quiz.id } as any, { onSuccess: () => qc.invalidateQueries() })}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="assignments" className="mt-4">
-          <CourseAssignments courseId={courseId} canManage={isTeacher} />
-        </TabsContent>
-
-        <TabsContent value="discussions" className="mt-4">
-          <CourseDiscussionsTab courseId={courseId} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function CourseAssignments({ courseId, canManage }: { courseId: number; canManage: boolean }) {
-  const { data, isLoading } = useAssignments(courseId);
-  const createMut = useCreateAssignment(courseId);
-  const delMut = useDeleteAssignment(courseId);
-  const [, navigate] = useLocation();
-  const [open, setOpen] = React.useState(false);
-  const [title, setTitle] = React.useState("");
-  const [description, setDescription] = React.useState("");
-  const [instructions, setInstructions] = React.useState("");
-  const [points, setPoints] = React.useState(100);
-  const [dueAt, setDueAt] = React.useState("");
-  const [att, setAtt] = React.useState<{ url: string; name: string; type: string; size: number } | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; if (!f) return;
-    if (f.size > 8 * 1024 * 1024) { setError(`File too large (${(f.size/1024/1024).toFixed(1)} MB). Max 8 MB.`); return; }
-    setError(null);
-    const ext = f.name.split(".").pop()?.toLowerCase() ?? "other";
-    const r = new FileReader();
-    r.onload = () => setAtt({ url: typeof r.result === "string" ? r.result : "", name: f.name, type: ext, size: f.size });
-    r.readAsDataURL(f);
-  }
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    createMut.mutate({
-      title, description, instructions, points,
-      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-      attachmentUrl: att?.url ?? null, attachmentName: att?.name ?? null,
-      attachmentType: att?.type ?? null, attachmentSize: att?.size ?? null,
-    }, {
-      onSuccess: () => { setOpen(false); setTitle(""); setDescription(""); setInstructions(""); setPoints(100); setDueAt(""); setAtt(null); setError(null); },
-      onError: (err: any) => setError(err?.message ?? "Failed to create."),
+  function submit() {
+    if (!status) return;
+    review.mutate({ id: submission.id, data: { status: status as FileSubmissionReviewInputStatus, reviewComment: comment } }, {
+      onSuccess: () => { toast({ title: `Submission ${status.replace("_", " ")}` }); onDone(); },
+      onError: (err: any) => toast({ title: "Failed", description: err?.message ?? "Could not save review", variant: "destructive" }),
     });
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Assignments</h2>
-        {canManage && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />New Assignment</Button></DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader><DialogTitle>Create assignment</DialogTitle></DialogHeader>
-              <form onSubmit={submit} className="space-y-3">
-                <div className="space-y-1.5"><Label>Title</Label><Input required value={title} onChange={e => setTitle(e.target.value)} /></div>
-                <div className="space-y-1.5"><Label>Short description</Label><Input value={description} onChange={e => setDescription(e.target.value)} /></div>
-                <div className="space-y-1.5"><Label>Instructions</Label><Textarea rows={4} value={instructions} onChange={e => setInstructions(e.target.value)} /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5"><Label>Points</Label><Input type="number" min={0} value={points} onChange={e => setPoints(parseInt(e.target.value) || 0)} /></div>
-                  <div className="space-y-1.5"><Label>Due date</Label><Input type="datetime-local" value={dueAt} onChange={e => setDueAt(e.target.value)} /></div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Reference file (optional, max 8 MB) — brief, starter file, rubric, etc.</Label>
-                  <Input type="file" onChange={onFile} />
-                  {att && <p className="text-xs text-muted-foreground">Attached: {att.name} &bull; {formatBytes(att.size)}</p>}
-                </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-                <DialogFooter><Button type="submit" disabled={createMut.isPending}>{createMut.isPending ? "Creating..." : "Create"}</Button></DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-      {isLoading && [1,2].map(i => <Skeleton key={i} className="h-20 w-full" />)}
-      {!isLoading && !data?.length && (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">No assignments yet.</CardContent></Card>
-      )}
-      <div className="space-y-2">
-        {data?.map((a: any) => (
-          <Card key={a.id} className="hover:border-primary/30 cursor-pointer transition-colors" onClick={() => navigate(`/assignments/${a.id}`)}>
-            <CardContent className="py-4 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-sm">{a.title}</span>
-                  {!a.isPublished && <Badge variant="outline" className="text-xs">Draft</Badge>}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {a.dueAt && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Due {new Date(a.dueAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>}
-                  <span>{a.points} pts</span>
-                  {a.submissionCount != null && <span>&bull; {a.submissionCount} submission{a.submissionCount === 1 ? "" : "s"}</span>}
-                </div>
-              </div>
-              {canManage && (
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => { e.stopPropagation(); if (confirm("Delete assignment?")) delMut.mutate(a.id); }}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CourseDiscussionsTab({ courseId }: { courseId: number }) {
-  const { data, isLoading } = useDiscussions(courseId);
-  const [, navigate] = useLocation();
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Discussions</h2>
-        <Button size="sm" variant="outline" onClick={() => navigate(`/courses/${courseId}/discussions`)}>
-          Open full forum →
-        </Button>
-      </div>
-      {isLoading && [1,2].map(i => <Skeleton key={i} className="h-20 w-full" />)}
-      {!isLoading && !data?.length && (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">No discussion threads yet.</CardContent></Card>
-      )}
-      <div className="space-y-2">
-        {data?.slice(0, 6).map((d: any) => (
-          <Card key={d.id} className="hover:border-primary/30 cursor-pointer transition-colors" onClick={() => navigate(`/courses/${courseId}/discussions/${d.id}`)}>
-            <CardContent className="py-3 flex items-center gap-3">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate">{d.title}</p>
-                <p className="text-xs text-muted-foreground">{d.authorName} &bull; {d.replyCount} repl{d.replyCount === 1 ? "y" : "ies"}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Review submission</DialogTitle>
+          <DialogDescription>{submission.studentName} · {submission.title}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: "approved", label: "Approve", icon: <CheckCircle className="h-4 w-4" />, cls: "border-emerald-500 text-emerald-700 bg-emerald-50" },
+              { value: "rejected", label: "Reject", icon: <XCircle className="h-4 w-4" />, cls: "border-red-500 text-red-700 bg-red-50" },
+              { value: "revision_requested", label: "Revise", icon: <RefreshCw className="h-4 w-4" />, cls: "border-orange-500 text-orange-700 bg-orange-50" },
+            ].map(o => (
+              <button key={o.value} type="button" onClick={() => setStatus(o.value)}
+                className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                  status === o.value ? o.cls : "border-border text-muted-foreground hover:border-muted-foreground"
+                }`}>
+                {o.icon}
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Comment {(status === "rejected" || status === "revision_requested") && <span className="text-destructive">*</span>}</Label>
+            <Textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
+              placeholder={status === "rejected" ? "Why was this rejected? The student will be emailed your feedback." : "Optional feedback…"} />
+          </div>
+          {(status === "rejected" || status === "revision_requested") && (
+            <p className="text-xs text-muted-foreground">
+              The student will be notified by email of your decision and any feedback.
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit}
+            disabled={!status || review.isPending || ((status === "rejected" || status === "revision_requested") && !comment.trim())}>
+            {review.isPending ? "Saving…" : "Submit Review"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

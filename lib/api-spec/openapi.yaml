@@ -20,6 +20,7 @@ tags:
   - name: enrollments
   - name: users
   - name: file-submissions
+  - name: submission-slots
   - name: invitations
 
 paths:
@@ -1001,6 +1002,10 @@ paths:
           in: query
           schema:
             type: integer
+        - name: slotId
+          in: query
+          schema:
+            type: integer
         - name: status
           in: query
           schema:
@@ -1076,6 +1081,124 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FileSubmission"
+
+  # ─── SUBMISSION SLOTS ────────────────────────────────────────────────────────
+  /courses/{courseId}/submission-slots:
+    get:
+      operationId: listSubmissionSlots
+      tags: [submission-slots]
+      summary: List submission slots for a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubmissionSlot"
+    post:
+      operationId: createSubmissionSlot
+      tags: [submission-slots]
+      summary: Create a submission slot (teacher/admin only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionSlotInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSlot"
+
+  /submission-slots/{id}:
+    get:
+      operationId: getSubmissionSlot
+      tags: [submission-slots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Slot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSlot"
+    patch:
+      operationId: updateSubmissionSlot
+      tags: [submission-slots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmissionSlotInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionSlot"
+    delete:
+      operationId: deleteSubmissionSlot
+      tags: [submission-slots]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /submission-slots/{id}/submissions:
+    get:
+      operationId: listSlotSubmissions
+      tags: [submission-slots]
+      summary: List submissions for a slot (own only for students)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileSubmission"
 
   /file-submissions/{id}/review:
     post:
@@ -1920,6 +2043,10 @@ components:
           type: ["string", "null"]
         courseCode:
           type: ["string", "null"]
+        slotId:
+          type: ["integer", "null"]
+        slotTitle:
+          type: ["string", "null"]
         title:
           type: string
         description:
@@ -1957,6 +2084,8 @@ components:
       properties:
         courseId:
           type: integer
+        slotId:
+          type: integer
         title:
           type: string
         description:
@@ -1985,6 +2114,53 @@ components:
           type: string
         fileSize:
           type: integer
+
+    SubmissionSlot:
+      type: object
+      required: [id, courseId, title, allowResubmission, createdBy, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        courseId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+        allowResubmission:
+          type: boolean
+        createdBy:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        submissionCount:
+          type: integer
+        pendingCount:
+          type: integer
+        approvedCount:
+          type: integer
+        rejectedCount:
+          type: integer
+
+    SubmissionSlotInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+        allowResubmission:
+          type: boolean
 
     FileSubmissionReviewInput:
       type: object

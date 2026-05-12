@@ -62,6 +62,8 @@ import type {
   QuizUpdate,
   StartQuizInput,
   SubmissionInput,
+  SubmissionSlot,
+  SubmissionSlotInput,
   User,
   UserInput,
   UserUpdate,
@@ -4531,6 +4533,508 @@ export const useUpdateFileSubmission = <
 > => {
   return useMutation(getUpdateFileSubmissionMutationOptions(options));
 };
+
+/**
+ * @summary List submission slots for a course
+ */
+export const getListSubmissionSlotsUrl = (courseId: number) => {
+  return `/api/courses/${courseId}/submission-slots`;
+};
+
+export const listSubmissionSlots = async (
+  courseId: number,
+  options?: RequestInit,
+): Promise<SubmissionSlot[]> => {
+  return customFetch<SubmissionSlot[]>(getListSubmissionSlotsUrl(courseId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSubmissionSlotsQueryKey = (courseId: number) => {
+  return [`/api/courses/${courseId}/submission-slots`] as const;
+};
+
+export const getListSubmissionSlotsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSubmissionSlots>>,
+  TError = ErrorType<unknown>,
+>(
+  courseId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSubmissionSlots>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListSubmissionSlotsQueryKey(courseId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSubmissionSlots>>
+  > = ({ signal }) =>
+    listSubmissionSlots(courseId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!courseId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSubmissionSlots>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSubmissionSlotsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSubmissionSlots>>
+>;
+export type ListSubmissionSlotsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List submission slots for a course
+ */
+
+export function useListSubmissionSlots<
+  TData = Awaited<ReturnType<typeof listSubmissionSlots>>,
+  TError = ErrorType<unknown>,
+>(
+  courseId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSubmissionSlots>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSubmissionSlotsQueryOptions(courseId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a submission slot (teacher/admin only)
+ */
+export const getCreateSubmissionSlotUrl = (courseId: number) => {
+  return `/api/courses/${courseId}/submission-slots`;
+};
+
+export const createSubmissionSlot = async (
+  courseId: number,
+  submissionSlotInput: SubmissionSlotInput,
+  options?: RequestInit,
+): Promise<SubmissionSlot> => {
+  return customFetch<SubmissionSlot>(getCreateSubmissionSlotUrl(courseId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submissionSlotInput),
+  });
+};
+
+export const getCreateSubmissionSlotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSubmissionSlot>>,
+    TError,
+    { courseId: number; data: BodyType<SubmissionSlotInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSubmissionSlot>>,
+  TError,
+  { courseId: number; data: BodyType<SubmissionSlotInput> },
+  TContext
+> => {
+  const mutationKey = ["createSubmissionSlot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSubmissionSlot>>,
+    { courseId: number; data: BodyType<SubmissionSlotInput> }
+  > = (props) => {
+    const { courseId, data } = props ?? {};
+
+    return createSubmissionSlot(courseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSubmissionSlotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSubmissionSlot>>
+>;
+export type CreateSubmissionSlotMutationBody = BodyType<SubmissionSlotInput>;
+export type CreateSubmissionSlotMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a submission slot (teacher/admin only)
+ */
+export const useCreateSubmissionSlot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSubmissionSlot>>,
+    TError,
+    { courseId: number; data: BodyType<SubmissionSlotInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSubmissionSlot>>,
+  TError,
+  { courseId: number; data: BodyType<SubmissionSlotInput> },
+  TContext
+> => {
+  return useMutation(getCreateSubmissionSlotMutationOptions(options));
+};
+
+export const getGetSubmissionSlotUrl = (id: number) => {
+  return `/api/submission-slots/${id}`;
+};
+
+export const getSubmissionSlot = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SubmissionSlot> => {
+  return customFetch<SubmissionSlot>(getGetSubmissionSlotUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSubmissionSlotQueryKey = (id: number) => {
+  return [`/api/submission-slots/${id}`] as const;
+};
+
+export const getGetSubmissionSlotQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSubmissionSlot>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSubmissionSlot>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSubmissionSlotQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSubmissionSlot>>
+  > = ({ signal }) => getSubmissionSlot(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSubmissionSlot>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSubmissionSlotQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSubmissionSlot>>
+>;
+export type GetSubmissionSlotQueryError = ErrorType<unknown>;
+
+export function useGetSubmissionSlot<
+  TData = Awaited<ReturnType<typeof getSubmissionSlot>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSubmissionSlot>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSubmissionSlotQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUpdateSubmissionSlotUrl = (id: number) => {
+  return `/api/submission-slots/${id}`;
+};
+
+export const updateSubmissionSlot = async (
+  id: number,
+  submissionSlotInput: SubmissionSlotInput,
+  options?: RequestInit,
+): Promise<SubmissionSlot> => {
+  return customFetch<SubmissionSlot>(getUpdateSubmissionSlotUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submissionSlotInput),
+  });
+};
+
+export const getUpdateSubmissionSlotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSubmissionSlot>>,
+    TError,
+    { id: number; data: BodyType<SubmissionSlotInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSubmissionSlot>>,
+  TError,
+  { id: number; data: BodyType<SubmissionSlotInput> },
+  TContext
+> => {
+  const mutationKey = ["updateSubmissionSlot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSubmissionSlot>>,
+    { id: number; data: BodyType<SubmissionSlotInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSubmissionSlot(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSubmissionSlotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSubmissionSlot>>
+>;
+export type UpdateSubmissionSlotMutationBody = BodyType<SubmissionSlotInput>;
+export type UpdateSubmissionSlotMutationError = ErrorType<unknown>;
+
+export const useUpdateSubmissionSlot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSubmissionSlot>>,
+    TError,
+    { id: number; data: BodyType<SubmissionSlotInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSubmissionSlot>>,
+  TError,
+  { id: number; data: BodyType<SubmissionSlotInput> },
+  TContext
+> => {
+  return useMutation(getUpdateSubmissionSlotMutationOptions(options));
+};
+
+export const getDeleteSubmissionSlotUrl = (id: number) => {
+  return `/api/submission-slots/${id}`;
+};
+
+export const deleteSubmissionSlot = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteSubmissionSlotUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteSubmissionSlotMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSubmissionSlot>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSubmissionSlot>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteSubmissionSlot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSubmissionSlot>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteSubmissionSlot(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSubmissionSlotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSubmissionSlot>>
+>;
+
+export type DeleteSubmissionSlotMutationError = ErrorType<unknown>;
+
+export const useDeleteSubmissionSlot = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSubmissionSlot>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSubmissionSlot>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteSubmissionSlotMutationOptions(options));
+};
+
+/**
+ * @summary List submissions for a slot (own only for students)
+ */
+export const getListSlotSubmissionsUrl = (id: number) => {
+  return `/api/submission-slots/${id}/submissions`;
+};
+
+export const listSlotSubmissions = async (
+  id: number,
+  options?: RequestInit,
+): Promise<FileSubmission[]> => {
+  return customFetch<FileSubmission[]>(getListSlotSubmissionsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSlotSubmissionsQueryKey = (id: number) => {
+  return [`/api/submission-slots/${id}/submissions`] as const;
+};
+
+export const getListSlotSubmissionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSlotSubmissions>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSlotSubmissions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSlotSubmissionsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSlotSubmissions>>
+  > = ({ signal }) => listSlotSubmissions(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSlotSubmissions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSlotSubmissionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSlotSubmissions>>
+>;
+export type ListSlotSubmissionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List submissions for a slot (own only for students)
+ */
+
+export function useListSlotSubmissions<
+  TData = Awaited<ReturnType<typeof listSlotSubmissions>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSlotSubmissions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSlotSubmissionsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Approve, reject, or request revision (teacher/admin only)

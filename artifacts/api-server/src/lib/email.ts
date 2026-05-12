@@ -133,3 +133,34 @@ This link expires in 7 days. If you didn't expect this invitation, you can safel
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+
+type SubmissionDecisionEmail = {
+  to: string;
+  studentName: string;
+  courseTitle: string;
+  slotTitle: string;
+  decision: "rejected" | "revision_requested";
+  reviewerName: string;
+  reviewComment?: string | null;
+};
+
+/**
+ * Notify a student that their submission was rejected or needs revision.
+ * For now this is a console-only stub — real SMTP/Gmail wiring will land
+ * once the user provides their Office 365 credentials.
+ */
+export async function sendSubmissionDecisionEmail(opts: SubmissionDecisionEmail): Promise<void> {
+  const verb = opts.decision === "rejected" ? "REJECTED" : "REVISION REQUESTED";
+  logger.info(
+    {
+      to: opts.to,
+      student: opts.studentName,
+      course: opts.courseTitle,
+      slot: opts.slotTitle,
+      decision: opts.decision,
+      reviewer: opts.reviewerName,
+      comment: opts.reviewComment ?? null,
+    },
+    `[email-stub] Would email ${opts.to}: submission ${verb} for "${opts.slotTitle}" in ${opts.courseTitle}`,
+  );
+}
