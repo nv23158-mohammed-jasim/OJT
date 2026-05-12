@@ -17,6 +17,16 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _onUnauthorized: (() => void) | null = null;
+
+/**
+ * Register a global handler that runs whenever the API responds with HTTP 401.
+ * Useful for clearing local auth state and redirecting to the login page when
+ * a session has expired server-side. Pass `null` to clear the handler.
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  _onUnauthorized = handler;
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -364,6 +374,9 @@ export async function customFetch<T = unknown>(
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
+    if (response.status === 401 && _onUnauthorized) {
+      try { _onUnauthorized(); } catch { /* ignore */ }
+    }
     throw new ApiError(response, errorData, requestInfo);
   }
 
