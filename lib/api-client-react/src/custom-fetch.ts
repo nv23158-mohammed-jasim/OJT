@@ -374,7 +374,12 @@ export async function customFetch<T = unknown>(
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
-    if (response.status === 401 && _onUnauthorized) {
+    // Fire the unauthorized handler only for protected routes, not for the
+    // auth endpoints themselves (login returning 401 = wrong password, and
+    // /auth/me returning 401 = not yet logged in — both are expected).
+    const requestUrl = resolveUrl(input);
+    const isAuthEndpoint = requestUrl.includes("/api/auth/");
+    if (response.status === 401 && _onUnauthorized && !isAuthEndpoint) {
       try { _onUnauthorized(); } catch { /* ignore */ }
     }
     throw new ApiError(response, errorData, requestInfo);

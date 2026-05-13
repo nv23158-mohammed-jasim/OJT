@@ -165,11 +165,9 @@ export default function Login() {
             <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/80 mb-3 text-center">
               Demo accounts
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               {[
-                { label: "Student", email: "student@example.com" },
-                { label: "Teacher", email: "teacher@example.com" },
-                { label: "Admin", email: "admin@ncst.edu.bh" },
+                { label: "Admin — admin@ncst.edu.bh", email: "admin@ncst.edu.bh" },
               ].map(d => (
                 <button
                   key={d.label}
