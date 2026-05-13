@@ -24,7 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  FileText, ChevronLeft, Plus, Upload, Trash2, ExternalLink, Clock,
+  FileText, ChevronLeft, Plus, Upload, Trash2, ExternalLink, Download, Clock,
   CheckCircle, XCircle, RefreshCw, Pencil, FolderOpen, Users, BookOpen,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -34,6 +34,34 @@ function formatBytes(bytes?: number | null) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function openFile(fileUrl: string, fileName: string, download = false) {
+  if (fileUrl.startsWith("data:")) {
+    const [header, data] = fileUrl.split(",");
+    const mime = header?.match(/:(.*?);/)?.[1] ?? "application/octet-stream";
+    const binary = atob(data ?? "");
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    if (download) a.download = fileName;
+    else a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else {
+    const a = document.createElement("a");
+    a.href = fileUrl;
+    if (download) a.download = fileName;
+    else a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode; color: string }> = {
@@ -319,9 +347,14 @@ function SlotStudentPanel({ slot, courseId, userId }: { slot: SubmissionSlot; co
                       <p className="text-xs mt-1 italic">"{s.reviewComment}"{s.reviewerName && ` — ${s.reviewerName}`}</p>
                     )}
                   </div>
-                  <a href={s.fileUrl} download={s.fileName} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                    <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
-                  </a>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button variant="ghost" size="sm" title="Open in new tab" onClick={() => openFile(s.fileUrl, s.fileName)}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" title="Download" onClick={() => openFile(s.fileUrl, s.fileName, true)}>
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                   {(s.status === "pending" ||
                     ((s.status === "rejected" || s.status === "revision_requested") && slot.allowResubmission)) && (
                     <Button variant="ghost" size="sm" onClick={() => startEdit(s)} className="flex-shrink-0">
@@ -405,9 +438,14 @@ function SlotReviewPanel({ slot }: { slot: SubmissionSlot }) {
                 <p className="text-xs mt-1"><span className="font-medium">Your note:</span> {s.reviewComment}</p>
               )}
             </div>
-            <a href={s.fileUrl} download={s.fileName} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-              <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
-            </a>
+            <div className="flex gap-1 flex-shrink-0">
+              <Button variant="ghost" size="sm" title="Open in new tab" onClick={() => openFile(s.fileUrl, s.fileName)}>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="sm" title="Download" onClick={() => openFile(s.fileUrl, s.fileName, true)}>
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            </div>
             <Button size="sm" variant="outline" onClick={() => setReviewing(s)} className="flex-shrink-0">
               {s.status === "pending" ? "Review" : "Re-review"}
             </Button>

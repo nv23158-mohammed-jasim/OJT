@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, CheckCircle, XCircle, Clock, RefreshCw, ExternalLink } from "lucide-react";
+import { FileText, CheckCircle, XCircle, Clock, RefreshCw, ExternalLink, Download } from "lucide-react";
 import { format } from "date-fns";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode; color: string }> = {
@@ -28,6 +28,34 @@ function formatBytes(bytes?: number | null) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function openFile(fileUrl: string, fileName: string, download = false) {
+  if (fileUrl.startsWith("data:")) {
+    const [header, data] = fileUrl.split(",");
+    const mime = header?.match(/:(.*?);/)?.[1] ?? "application/octet-stream";
+    const binary = atob(data ?? "");
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    if (download) a.download = fileName;
+    else a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else {
+    const a = document.createElement("a");
+    a.href = fileUrl;
+    if (download) a.download = fileName;
+    else a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
 
 export default function Submissions() {
@@ -134,9 +162,12 @@ export default function Submissions() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <a href={sub.fileUrl} download={sub.fileName} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="sm" className="gap-1"><ExternalLink className="h-3.5 w-3.5" /> Open</Button>
-                      </a>
+                      <Button variant="ghost" size="sm" className="gap-1" title="Open in new tab" onClick={() => openFile(sub.fileUrl, sub.fileName)}>
+                        <ExternalLink className="h-3.5 w-3.5" /> Open
+                      </Button>
+                      <Button variant="ghost" size="sm" className="gap-1" title="Download" onClick={() => openFile(sub.fileUrl, sub.fileName, true)}>
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </Button>
                       {isReviewer && (
                         <Button size="sm" variant={sub.status === "pending" ? "default" : "outline"} onClick={() => setReviewing(sub)}>
                           {sub.status === "pending" ? "Review" : "Re-review"}
