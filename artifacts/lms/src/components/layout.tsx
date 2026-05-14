@@ -32,6 +32,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Teaching",
     items: [
+      { label: "My Panel", href: "/teacher", icon: GraduationCap, roles: ["teacher", "admin"] },
       { label: "Review Files", href: "/submissions", icon: Upload, roles: ["teacher", "admin"] },
     ],
   },
