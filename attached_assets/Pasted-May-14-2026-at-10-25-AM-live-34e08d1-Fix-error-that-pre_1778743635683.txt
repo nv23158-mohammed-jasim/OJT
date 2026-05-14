@@ -1,0 +1,50 @@
+May 14, 2026 at 10:25 AM
+live
+34e08d1
+Fix error that prevents the server from starting Resolves a startup crash by delaying the initialization of the OpenAI client until it's actually needed. Replit-Commit-Author: Agent Replit-Commit-Session-Id: 5f777c58-fc14-4f9f-8a82-daa5e297681e Replit-Commit-Checkpoint-Type: full_checkpoint Replit-Commit-Event-Id: a8e55261-0b36-4948-839b-e370804cb8c8 Replit-Helium-Checkpoint-Created: true
+
+All logs
+Search
+Search
+
+May 14, 10:24 AM - 10:27 AM
+GMT+3
+
+
+
+==> Downloading cache...
+==> It looks like we don't have access to your repo, but we'll try to clone it anyway.
+==> Cloning from https://github.com/nv23158-mohammed-jasim/OJT
+==> Checking out commit 34e08d10bc37a8612d427b593919e852e02c6a86 in branch main
+==> Downloaded 94MB in 3s. Extraction took 3s.
+==> Using Node.js version 24.14.1 (default)
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+==> Running build command 'pnpm install && pnpm --filter @workspace/api-server run build'...
+> @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+> node ./build.mjs
+  dist/index.mjs                       2.6mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.1kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   6.0mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           203.9kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+⚡ Done in 602ms
+==> Uploading build...
+==> Uploaded in 3.6s. Compression took 4.4s
+==> Build successful 🎉
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node artifacts/api-server/dist/index.mjs'
+{"level":30,"time":1778743575144,"pid":71,"hostname":"srv-d82n7shj2pic73angmdg-hibernate-697587597f-jg7d2","port":10000,"msg":"Server listening"}
+{"level":30,"time":1778743575699,"pid":71,"hostname":"srv-d82n7shj2pic73angmdg-hibernate-697587597f-jg7d2","req":{"id":1,"method":"HEAD","url":"/"},"res":{"statusCode":404},"responseTime":9,"msg":"request completed"}
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://ojt-kdd3.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
