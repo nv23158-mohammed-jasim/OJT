@@ -3,10 +3,16 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "missing",
+    });
+  }
+  return _openai;
+}
 
 interface GeneratedQuestion {
   questionText: string;
@@ -77,7 +83,7 @@ ${courseContext ? `Course context: ${courseContext}\n` : ""}${instructions ? `Ad
 Mix question types from the allowed list. Return ONLY the JSON object.`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-5.4",
       max_completion_tokens: 8192,
       response_format: { type: "json_object" },

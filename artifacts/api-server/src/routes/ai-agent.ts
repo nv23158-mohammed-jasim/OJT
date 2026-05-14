@@ -11,10 +11,16 @@ import { eq, and, or, desc, sql, ilike } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "missing",
+    });
+  }
+  return _openai;
+}
 
 type Role = "student" | "teacher" | "admin";
 interface Caller { id: number; role: Role; name: string; email: string; }
@@ -369,7 +375,7 @@ const toolHandlers: Record<string, (caller: Caller, args: any) => Promise<any>> 
       ? args.questionTypes.filter((t: string) => ["multiple_choice","true_false","short_answer","essay"].includes(t))
       : ["multiple_choice", "true_false"];
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-5.4",
       max_completion_tokens: 8192,
       response_format: { type: "json_object" },
@@ -560,7 +566,7 @@ GUIDELINES:
 
   try {
     for (let iter = 0; iter < 6; iter++) {
-      const completion = await openai.chat.completions.create({
+      const completion = await getOpenAI().chat.completions.create({
         model: "gpt-5.4",
         max_completion_tokens: 4096,
         tools,
