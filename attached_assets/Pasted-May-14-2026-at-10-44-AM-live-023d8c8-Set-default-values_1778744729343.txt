@@ -1,0 +1,45 @@
+May 14, 2026 at 10:44 AM
+live
+023d8c8
+Set default values for port and base path in build configuration Modify vite.config.ts to include default values for PORT and BASE_PATH environment variables, resolving build errors on Render. Replit-Commit-Author: Agent Replit-Commit-Session-Id: 5f777c58-fc14-4f9f-8a82-daa5e297681e Replit-Commit-Checkpoint-Type: full_checkpoint Replit-Commit-Event-Id: 9de0006c-1118-4ec4-84ae-d0a5eb1de9b7 Replit-Helium-Checkpoint-Created: true
+Search
+Search
+
+May 14, 10:43 AM - 10:46 AM
+GMT+3
+
+
+
+==> It looks like we don't have access to your repo, but we'll try to clone it anyway.
+==> Cloning from https://github.com/nv23158-mohammed-jasim/OJT
+==> Checking out commit 023d8c82b5ce0748159423ffea56d01c969bc06a in branch main
+==> Installing dependencies with pnpm...
+==> Using Node.js version 24.14.1 (default)
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+==> Running build command 'pnpm install && pnpm --filter @workspace/lms run build'...
+> @workspace/lms@0.0.0 build /opt/render/project/src/artifacts/lms
+> vite build --config vite.config.ts
+vite v7.3.2 building client environment for production...
+transforming...
+src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/sheet.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+✓ 2151 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/public/index.html                          1.44 kB │ gzip:   0.58 kB
+dist/public/assets/index-DZxUGbBk.css         124.27 kB │ gzip:  19.65 kB
+dist/public/assets/trash-2-D9pXQvyF.js          0.33 kB │ gzip:   0.22 kB
+dist/public/assets/refresh-cw-BIg2AVHz.js       0.51 kB │ gzip:   0.30 kB
+dist/public/assets/alert-BSnf480y.js            1.07 kB │ gzip:   0.57 kB
+dist/public/assets/invite-JNBuhEWK.js           6.55 kB │ gzip:   2.08 kB
+dist/public/assets/submissions-CKp-KgIs.js      8.15 kB │ gzip:   2.89 kB
+dist/public/assets/teacher-panel-CyhFUolJ.js   18.68 kB │ gzip:   5.39 kB
+dist/public/assets/format-DVpviLWE.js          19.73 kB │ gzip:   5.69 kB
+dist/public/assets/course-detail-B1A6g6mr.js   20.57 kB │ gzip:   6.57 kB
+dist/public/assets/admin-CFstP1P2.js           28.16 kB │ gzip:   8.28 kB
+dist/public/assets/index-BQ2be8Z8.js          445.54 kB │ gzip: 138.43 kB
+✓ built in 6.79s
+==> Uploading build...
+==> Your site is live 🎉
