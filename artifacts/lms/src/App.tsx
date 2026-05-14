@@ -16,6 +16,8 @@ import Settings from "./pages/settings";
 const CourseDetail = lazy(() => import("./pages/course-detail"));
 const Admin = lazy(() => import("./pages/admin"));
 const Submissions = lazy(() => import("./pages/submissions"));
+const TeacherPanel = lazy(() => import("./pages/teacher-panel"));
+const Invite = lazy(() => import("./pages/invite"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +90,8 @@ function Router() {
       <Route path="/submissions" component={() => <ProtectedRoute component={Submissions} />} />
       <Route path="/courses/:id" component={() => <ProtectedRoute component={CourseDetail} />} />
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} roles={["admin"]} />} />
+      <Route path="/teacher" component={() => <ProtectedRoute component={TeacherPanel} roles={["teacher", "admin"]} />} />
+      <Route path="/invite/:token" component={() => <Suspense fallback={null}><Invite /></Suspense>} />
       <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
       <Route component={NotFound} />
     </Switch>
