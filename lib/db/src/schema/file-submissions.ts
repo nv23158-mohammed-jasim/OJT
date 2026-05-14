@@ -3,7 +3,6 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { coursesTable } from "./courses";
-import { submissionSlotsTable } from "./submission-slots";
 
 export const submissionStatusEnum = pgEnum("submission_status", [
   "pending",
@@ -16,7 +15,6 @@ export const fileSubmissionsTable = pgTable("file_submissions", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   courseId: integer("course_id").notNull().references(() => coursesTable.id, { onDelete: "cascade" }),
-  slotId: integer("slot_id").references(() => submissionSlotsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   fileUrl: text("file_url").notNull(),
