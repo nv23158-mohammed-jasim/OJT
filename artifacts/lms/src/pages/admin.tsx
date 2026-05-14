@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useListUsers, useCreateUser, useDeleteUser, useListCourses, useCreateCourse, useUpdateCourse, useCreateEnrollment } from "@workspace/api-client-react";
+import { useListUsers, useCreateUser, useDeleteUser, useListCourses, useCreateCourse, useUpdateCourse } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -156,12 +156,8 @@ export default function Admin() {
   const { data: users, isLoading: usersLoading } = useListUsers();
   const { data: courses, isLoading: coursesLoading } = useListCourses();
   const deleteUser = useDeleteUser();
-  const createEnrollment = useCreateEnrollment();
   const updateCourse = useUpdateCourse();
   const qc = useQueryClient();
-
-  const [enrollStudentId, setEnrollStudentId] = useState("");
-  const [enrollCourseId, setEnrollCourseId] = useState("");
 
   const teachers = users?.filter((u: any) => u.role === "teacher") ?? [];
   const students = users?.filter((u: any) => u.role === "student") ?? [];
@@ -170,10 +166,9 @@ export default function Admin() {
     <div data-testid="admin-page" className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Admin Panel</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage users, courses, and enrollments.</p>
+        <p className="text-muted-foreground text-sm mt-1">Manage users and courses.</p>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: "Total Users", value: users?.length ?? "-", icon: Users, color: "text-blue-600" },
@@ -198,10 +193,8 @@ export default function Admin() {
         <TabsList>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
-          <TabsTrigger value="enrollments">Enrollments</TabsTrigger>
         </TabsList>
 
-        {/* Users Tab */}
         <TabsContent value="users" className="mt-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between py-4">
@@ -236,7 +229,7 @@ export default function Admin() {
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
                             disabled={deleteUser.isPending}
                             onClick={() => {
-                              if (confirm(`Permanently delete ${u.name} (${u.email})?\n\nThis will also remove all of their enrollments and submissions. This cannot be undone.`)) {
+                              if (confirm(`Permanently delete ${u.name} (${u.email})? This cannot be undone.`)) {
                                 deleteUser.mutate({ id: u.id } as any, { onSuccess: () => qc.invalidateQueries() });
                               }
                             }}>
@@ -252,7 +245,6 @@ export default function Admin() {
           </Card>
         </TabsContent>
 
-        {/* Courses Tab */}
         <TabsContent value="courses" className="mt-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between py-4">
@@ -268,7 +260,6 @@ export default function Admin() {
                       <TableHead>Code</TableHead>
                       <TableHead>Teacher</TableHead>
                       <TableHead>Semester</TableHead>
-                      <TableHead>Students</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -279,7 +270,6 @@ export default function Admin() {
                         <TableCell className="font-mono text-sm">{c.code}</TableCell>
                         <TableCell className="text-sm">{c.teacherName}</TableCell>
                         <TableCell className="text-sm">{c.semester} {c.academicYear}</TableCell>
-                        <TableCell className="text-sm">{c.enrollmentCount}</TableCell>
                         <TableCell>
                           <button
                             className={`px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer ${c.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
@@ -293,44 +283,6 @@ export default function Admin() {
                   </TableBody>
                 </Table>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Enrollments Tab */}
-        <TabsContent value="enrollments" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Enroll Student</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Student</Label>
-                  <Select value={enrollStudentId} onValueChange={setEnrollStudentId}>
-                    <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
-                    <SelectContent>
-                      {students.map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Course</Label>
-                  <Select value={enrollCourseId} onValueChange={setEnrollCourseId}>
-                    <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
-                    <SelectContent>
-                      {courses?.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.title} ({c.code})</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button
-                disabled={!enrollStudentId || !enrollCourseId || createEnrollment.isPending}
-                onClick={() => createEnrollment.mutate({ data: { studentId: parseInt(enrollStudentId), courseId: parseInt(enrollCourseId) } } as any, {
-                  onSuccess: () => { setEnrollStudentId(""); setEnrollCourseId(""); qc.invalidateQueries(); }
-                })}
-              >
-                {createEnrollment.isPending ? "Enrolling..." : "Enroll Student"}
-              </Button>
-              {createEnrollment.isSuccess && <p className="text-sm text-green-600">Student enrolled successfully.</p>}
             </CardContent>
           </Card>
         </TabsContent>

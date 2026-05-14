@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, coursesTable, usersTable, enrollmentsTable, quizzesTable, filesTable, modulesTable, alertsTable, attemptsTable } from "@workspace/db";
-import { eq, sql, count, inArray } from "drizzle-orm";
+import { db, coursesTable, usersTable } from "@workspace/db";
+import { eq, count, inArray } from "drizzle-orm";
 import { requireAuth, getRole, courseAccess, isStaff } from "../lib/authz.js";
 
 const router: IRouter = Router();
@@ -9,18 +9,11 @@ router.get("/courses", async (req, res): Promise<void> => {
   const userId = requireAuth(req, res); if (!userId) return;
   const role = await getRole(userId);
 
-  // Determine the set of course IDs this user is allowed to see.
-  // - admin: everything
-  // - teacher: courses they own
-  // - student: courses they are enrolled in
   let allowedIds: number[] | "all" = "all";
   if (role === "teacher") {
     const owned = await db.select({ id: coursesTable.id }).from(coursesTable).where(eq(coursesTable.teacherId, userId));
     allowedIds = owned.map(c => c.id);
-  } else if (role === "student") {
-    const en = await db.select({ courseId: enrollmentsTable.courseId }).from(enrollmentsTable).where(eq(enrollmentsTable.studentId, userId));
-    allowedIds = en.map(e => e.courseId);
-  } else if (role !== "admin") {
+  } else if (role !== "admin" && role !== "student") {
     res.status(403).json({ error: "Forbidden" }); return;
   }
 
@@ -43,13 +36,7 @@ router.get("/courses", async (req, res): Promise<void> => {
     ? await baseQuery.orderBy(coursesTable.title)
     : await baseQuery.where(inArray(coursesTable.id, allowedIds)).orderBy(coursesTable.title);
 
-  const enrollmentCounts = await db.select({
-    courseId: enrollmentsTable.courseId,
-    count: count(enrollmentsTable.id),
-  }).from(enrollmentsTable).groupBy(enrollmentsTable.courseId);
-  const countMap = new Map(enrollmentCounts.map(e => [e.courseId, e.count]));
-
-  res.json(courses.map(c => ({ ...c, enrollmentCount: countMap.get(c.id) ?? 0 })));
+  res.json(courses.map(c => ({ ...c, enrollmentCount: 0 })));
 });
 
 router.post("/courses", async (req, res): Promise<void> => {
@@ -57,11 +44,7 @@ router.post("/courses", async (req, res): Promise<void> => {
   const role = await getRole(userId);
   if (role !== "admin" && role !== "teacher") { res.status(403).json({ error: "Only teachers and admins can create courses" }); return; }
   const { title, code, description, teacherId, semester, academicYear } = req.body;
-  if (!title || !code || !teacherId) {
-    res.status(400).json({ error: "Missing required fields" });
-    return;
-  }
-  // Teachers can only create courses they own; admins can assign any teacher.
+  if (!title || !code || !teacherId) { res.status(400).json({ error: "Missing required fields" }); return; }
   const finalTeacherId = role === "admin" ? teacherId : userId;
   const [course] = await db.insert(coursesTable).values({ title, code, description, teacherId: finalTeacherId, semester, academicYear }).returning();
   const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, finalTeacherId));
@@ -87,8 +70,7 @@ router.get("/courses/:id", async (req, res): Promise<void> => {
     createdAt: coursesTable.createdAt,
   }).from(coursesTable).leftJoin(usersTable, eq(coursesTable.teacherId, usersTable.id)).where(eq(coursesTable.id, id));
   if (!course) { res.status(404).json({ error: "Not found" }); return; }
-  const [ec] = await db.select({ count: count(enrollmentsTable.id) }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, id));
-  res.json({ ...course, enrollmentCount: ec?.count ?? 0 });
+  res.json({ ...course, enrollmentCount: 0 });
 });
 
 router.patch("/courses/:id", async (req, res): Promise<void> => {
@@ -98,7 +80,6 @@ router.patch("/courses/:id", async (req, res): Promise<void> => {
   const lvl = await courseAccess(userId, id);
   if (!isStaff(lvl)) { res.status(403).json({ error: "Only the course teacher or an admin can edit this course" }); return; }
   const { title, code, description, teacherId, semester, academicYear, isActive } = req.body;
-  // Only admin may reassign teacherId.
   const updates: Record<string, unknown> = { title, code, description, semester, academicYear, isActive };
   if (lvl === "admin" && teacherId !== undefined) updates.teacherId = teacherId;
   const [course] = await db.update(coursesTable).set(updates).where(eq(coursesTable.id, id)).returning();
@@ -115,47 +96,6 @@ router.delete("/courses/:id", async (req, res): Promise<void> => {
   if (!isStaff(lvl)) { res.status(403).json({ error: "Only the course teacher or an admin can delete this course" }); return; }
   await db.delete(coursesTable).where(eq(coursesTable.id, id));
   res.sendStatus(204);
-});
-
-router.get("/courses/:id/dashboard", async (req, res): Promise<void> => {
-  const userId = requireAuth(req, res); if (!userId) return;
-  const idCheck = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
-  const lvlCheck = await courseAccess(userId, idCheck);
-  if (!lvlCheck) { res.status(403).json({ error: "Forbidden" }); return; }
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(raw, 10);
-
-  const [enrollCount] = await db.select({ count: count(enrollmentsTable.id) }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, id));
-  const [quizCount] = await db.select({ count: count(quizzesTable.id) }).from(quizzesTable).where(eq(quizzesTable.courseId, id));
-
-  const modules = await db.select({ id: modulesTable.id }).from(modulesTable).where(eq(modulesTable.courseId, id));
-  const moduleIds = modules.map(m => m.id);
-  let fileCount = 0;
-  if (moduleIds.length > 0) {
-    const [fc] = await db.select({ count: count(filesTable.id) }).from(filesTable).where(sql`${filesTable.moduleId} = ANY(${sql.raw(`ARRAY[${moduleIds.join(",")}]`)})`);
-    fileCount = Number(fc?.count ?? 0);
-  }
-
-  // Count pending grades (submitted attempts with no score)
-  const quizzes = await db.select({ id: quizzesTable.id }).from(quizzesTable).where(eq(quizzesTable.courseId, id));
-  const quizIds = quizzes.map(q => q.id);
-  let pendingGrades = 0;
-  if (quizIds.length > 0) {
-    const [pg] = await db.select({ count: count(attemptsTable.id) }).from(attemptsTable).where(sql`${attemptsTable.quizId} = ANY(${sql.raw(`ARRAY[${quizIds.join(",")}]`)}) AND ${attemptsTable.status} IN ('submitted', 'force_submitted') AND ${attemptsTable.score} IS NULL`);
-    pendingGrades = Number(pg?.count ?? 0);
-  }
-
-  // Recent alerts count
-  const [alertCount] = await db.select({ count: count(alertsTable.id) }).from(alertsTable).leftJoin(attemptsTable, eq(alertsTable.attemptId, attemptsTable.id)).where(sql`${attemptsTable.quizId} = ANY(${quizIds.length > 0 ? sql.raw(`ARRAY[${quizIds.join(",")}]`) : sql.raw("ARRAY[]::int[]")}) AND ${alertsTable.resolved} = false`);
-
-  res.json({
-    courseId: id,
-    enrolledStudents: Number(enrollCount?.count ?? 0),
-    totalQuizzes: Number(quizCount?.count ?? 0),
-    totalFiles: fileCount,
-    pendingGrades,
-    recentAlerts: Number(alertCount?.count ?? 0),
-  });
 });
 
 export default router;

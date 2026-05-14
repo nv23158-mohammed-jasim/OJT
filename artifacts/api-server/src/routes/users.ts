@@ -1,9 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
-import {
-  db, usersTable, coursesTable, filesTable, announcementsTable,
-  courseInvitationsTable, fileSubmissionsTable,
-} from "@workspace/db";
+import { db, usersTable, coursesTable, fileSubmissionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -26,11 +23,7 @@ router.get("/users", async (_req, res): Promise<void> => {
 
 router.post("/users", async (req, res): Promise<void> => {
   const { name, email, password, role, studentId, department } = req.body;
-  if (!name || !email || !password || !role) {
-    res.status(400).json({ error: "Missing required fields" });
-    return;
-  }
-
+  if (!name || !email || !password || !role) { res.status(400).json({ error: "Missing required fields" }); return; }
   const passwordHash = await bcrypt.hash(String(password).toLowerCase(), 10);
   const [user] = await db.insert(usersTable).values({ name, email: String(email).toLowerCase().trim(), passwordHash, role, studentId, department }).returning();
   res.status(201).json(toUser(user));
@@ -75,24 +68,16 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
   if (!callerId) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [caller] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, callerId));
   if (!caller || caller.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
-
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (Number.isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   if (id === callerId) { res.status(400).json({ error: "You cannot delete your own account" }); return; }
-
   const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!target) { res.status(404).json({ error: "Not found" }); return; }
-
   try {
     await db.transaction(async (tx) => {
       await tx.delete(coursesTable).where(eq(coursesTable.teacherId, id));
-      await tx.delete(filesTable).where(eq(filesTable.uploadedBy, id));
-      await tx.delete(announcementsTable).where(eq(announcementsTable.authorId, id));
-      await tx.delete(courseInvitationsTable).where(eq(courseInvitationsTable.invitedBy, id));
-      await tx.update(fileSubmissionsTable)
-        .set({ reviewerId: null })
-        .where(eq(fileSubmissionsTable.reviewerId, id));
+      await tx.update(fileSubmissionsTable).set({ reviewerId: null }).where(eq(fileSubmissionsTable.reviewerId, id));
       await tx.delete(usersTable).where(eq(usersTable.id, id));
     });
     res.sendStatus(204);
@@ -102,22 +87,17 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
   }
 });
 
-// Bulk create users (admin only)
 router.post("/users/bulk", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [caller] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
   if (!caller || caller.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
-
   const { users } = req.body as { users: Array<{ name: string; email: string; password: string; role: string; studentId?: string; department?: string }> };
   if (!Array.isArray(users) || users.length === 0) { res.status(400).json({ error: "users array required" }); return; }
-
   const results: Array<{ success: boolean; email: string; error?: string; user?: ReturnType<typeof toUser> }> = [];
-
   for (const u of users) {
     if (!u.name || !u.email || !u.password || !u.role) {
-      results.push({ success: false, email: u.email ?? "?", error: "Missing required fields" });
-      continue;
+      results.push({ success: false, email: u.email ?? "?", error: "Missing required fields" }); continue;
     }
     try {
       const passwordHash = await bcrypt.hash(String(u.password).toLowerCase(), 10);
@@ -131,7 +111,6 @@ router.post("/users/bulk", async (req, res): Promise<void> => {
       results.push({ success: false, email: u.email, error: msg });
     }
   }
-
   const succeeded = results.filter(r => r.success).length;
   res.status(200).json({ succeeded, failed: results.length - succeeded, results });
 });

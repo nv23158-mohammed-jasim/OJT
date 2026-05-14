@@ -16,16 +16,9 @@ import Settings from "./pages/settings";
 const CourseDetail = lazy(() => import("./pages/course-detail"));
 const Admin = lazy(() => import("./pages/admin"));
 const Submissions = lazy(() => import("./pages/submissions"));
-const TeacherPanel = lazy(() => import("./pages/teacher-panel"));
-const Invite = lazy(() => import("./pages/invite"));
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 30_000,
-    },
-  },
+  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
 
 function PublicHome() {
@@ -39,26 +32,14 @@ function PublicHome() {
   return <Landing />;
 }
 
-function ProtectedRoute({ component: Component, roles, ...rest }: { component: React.ComponentType<any>; roles?: string[] }) {
+function ProtectedRoute({ component: Component, roles }: { component: React.ComponentType<any>; roles?: string[] }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
-
   React.useEffect(() => {
-    if (!isLoading && !user) {
-      setLocation("/login");
-    }
+    if (!isLoading && !user) setLocation("/login");
   }, [user, isLoading, setLocation]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!user) return null;
-
   if (roles && !roles.includes(user.role)) {
     return (
       <Layout>
@@ -69,11 +50,10 @@ function ProtectedRoute({ component: Component, roles, ...rest }: { component: R
       </Layout>
     );
   }
-
   return (
     <Layout>
       <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
-        <Component {...rest} />
+        <Component />
       </Suspense>
       <AIAssistant />
     </Layout>
@@ -90,8 +70,6 @@ function Router() {
       <Route path="/submissions" component={() => <ProtectedRoute component={Submissions} />} />
       <Route path="/courses/:id" component={() => <ProtectedRoute component={CourseDetail} />} />
       <Route path="/admin" component={() => <ProtectedRoute component={Admin} roles={["admin"]} />} />
-      <Route path="/teacher" component={() => <ProtectedRoute component={TeacherPanel} roles={["teacher", "admin"]} />} />
-      <Route path="/invite/:token" component={() => <Suspense fallback={null}><Invite /></Suspense>} />
       <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
       <Route component={NotFound} />
     </Switch>
