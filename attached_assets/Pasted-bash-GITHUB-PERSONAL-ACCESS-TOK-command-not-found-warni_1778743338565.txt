@@ -1,0 +1,84 @@
+bash: GITHUB_PERSONAL_ACCESS_TOK: command not found
+warning: url contains a newline in its host component: https://POETRY_PIP_NO_ISOLATE=1
+COLORTERM=truecolor
+POETRY_PIP_NO_PREFIX=1
+HISTCONTROL=ignoredups
+POETRY_PIP_USE_PIP_CACHE=1
+REPL_OWNER=mohammednv23158
+DATABASE_URL=postgresql://postgres:password@helium/heliumdb?sslmode=disable
+REPLIT_GITSAFE_NEW_REPLS_ENABLED=true
+NIXPKGS_ALLOW_UNFREE=1
+HISTSIZE=10000
+HOSTNAME=fdd78d59dab2
+__EGL_VENDOR_LIBRARY_FILENAMES=/nix/store/l4myp7qn0q9bqgmkqq4vnnii22ql1r68-mesa-25.0.7/share/glvnd/egl_vendor.d/50_mesa.json
+POETRY_INSTALLER_MODERN_INSTALLATION=1
+REPLIT_DOMAINS=c164cc0d-0a78-4013-99cf-7adda894ad47-00-2n3jdnr7k9rfr.pike.replit.dev
+LD_AUDIT=/nix/store/sj11ljhx4n79h9g0167f8lg8hp7n545m-replit_rtld_loader-1/rtld_loader.so
+PGPORT=5432
+XDG_DATA_HOME=/home/runner/workspace/.local/share
+REPL_OWNER_ID=34023585
+PGPASSWORD=password
+XDG_CONFIG_HOME=/home/runner/workspace/.config
+REPLIT_LD_AUDIT=/nix/store/sj11ljhx4n79h9g0167f8lg8hp7n545m-replit_rtld_loader-1/rtld_loader.so
+REPLIT_ARTIFACT_ROUTER=/nix/store/cznh1mf9257n1x7fnhawazimgdx3ivp3-artifact-router-0.1.0/bin/artifact-router
+REPLIT_CLI=/nix/store/cl8kzazapkhlviimpi96dkd083ycp89x-replit-cli-0.0.1/bin/replit
+GIT_CONFIG_GLOBAL=/run/replit/user/34023585/.config/git/config
+REPLIT_USER=mohammednv23158
+REPLIT_SUBCLUSTER=paid
+PWD=/home/runner/workspace
+NIX_PROFILES=/nix/var/nix/profiles/default /home/runner/.nix-profile
+REPLIT_DB_URL=https://kv.replit.com/v0/eyJhbGciOiJIUzUxMiIsImlzcyI6ImNvbm1hbiIsImtpZCI6InByb2Q6MSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjb25tYW4iLCJleHAiOjE3Nzg4NTAzMjEsImlhdCI6MTc3ODczODcyMSwiZGF0YWJhc2VfaWQiOiJjMTY0Y2MwZC0wYTc4LTQwMTMtOTljZi03YWRkYTg5NGFkNDcifQ.dh9ySGCuGZOK-mF0LKOlHqmNNkq50xm-kZCaRpIjUJq3BjN-F3NrDSyjG72FBiDebuMZzWPqAo19ihmr-8oipA
+REPLIT_SESSION=mohammednv23158-06x2
+NIX_PATH=nixpkgs=/home/runner/.nix-defexpr/channels/nixpkgs-stable-25_05:/home/runner/.nix-defexpr/channels
+REPLIT_EXPO_DEV_DOMAIN=c164cc0d-0a78-4013-99cf-7adda894ad47-00-2n3jdnr7k9rfr.expo.pike.replit.dev
+REPL_ID=c164cc0d-0a78-4013-99cf-7adda894ad47
+PIP_CONFIG_FILE=/nix/store/z0d7kvaycmw342xmz4xwwybm6p3p0zcs-pip.conf
+REPLIT_PYTHON_LD_LIBRARY_PATH=/nix/store/pya3p1ihjm446jpqpql93542cirqyn23-cpplibs/lib:/nix/store/c2qsgf2832zi4n29gfkqgkjpvmbmxam6-zlib-1.3.1/lib:/nix/store/f7rcazhd826xlcz43il4vafv28888cgj-glib-2.86.3/lib:/nix/store/ii3ybky5dqjikcrw7vdnh1j76ssy0ycm-libx11-1.8.12/lib:/nix/store/zshby6nalhw4mvap0rr97hv042808c2k-libxext-1.3.6/lib:/nix/store/0r6d7iw0q9wgxxj28zy87n1gjwvk0klp-libxinerama-1.1.5/lib:/nix/store/bb5xxw11ndww7iivcmdpxga9n1da24vg-libxcursor-1.2.3/lib:/nix/store/dyn0y5clf5b556yqwmj4841h43hz75p6-libxrandr-1.5.4/lib:/nix/store/x1f9a0qsj6a1y5nf178naagm2vbxnazc-libxi-1.8.2/lib:/nix/store/pv432a54y6di3n12iqix2dglkswvq1px-libxxf86vm-1.1.6/lib
+REPLIT_PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:/nix/store/lxnbcmx15m3yascasf4c9qh7zk19pd2b-python3.11-setuptools-80.9.0/lib/python3.11/site-packages
+HOME=/home/runner
+LANG=en_US.UTF-8
+CONNECTORS_HOSTNAME=connectors.replit.com
+REPL_IDENTITY=v2.public.Q2lSak1UWTBZMk13WkMwd1lUYzRMVFF3TVRNdE9UbGpaaTAzWVdSa1lUZzVOR0ZrTkRjU0QyMXZhR0Z0YldWa2JuWXlNekUxT0JvUVEyRnRjSFZ6TFV4bFlYSnVMVWgxWWlJa1l6RTJOR05qTUdRdE1HRTNPQzAwTURFekxUazVZMll0TjJGa1pHRTRPVFJoWkRRM09LSFJuQkJhREFvRWNHbHJaUklFY0dGcFpBPT2cwjktIJKOlBczV9nQlh77B4_zuW1OaNP41rDzaU75ta2GcNnuMIRIAwcFzgM3U6wN_2zVHabi1z8f14wm9O4N.R0FFaUJtTnZibTFoYmhLUkNIWXlMbkIxWW14cFl5NVJNbVF6VTFkMGVtVldXWGRSVm14U1RWZGFjVmxVU2pOU1ZrNUZVVmRzYjJKSVJtMVZWVXB2VVRBMGRsUnVTbWxSVmtwMlVUQmtRbFpYUmt0YU1qbHlWMWh3Umsxck5VaFViWEJPVWpGR01GUlZaRVpOTURsRVRVUkNUbEpGVmpaVVJsSnlUbFpyZVZkWVVrOU5hMXB5VjJ0a1JrNUZPVlZWYldoaFVrWkZlbEl5YUVaVk1GRjVUVmhhYUZJd1dqQlpiR1JYWVRKS2RWZFliRTVsYTFWNFZEQktkbEpyT1V4VFJrcDFVV3RHYUZGdGJFcFNWMDVJWWtoS1lWVnRPVWhUTW1SVFpERnNXR0pIZEVwaGJGcDVWRmRyTVdReVVsaFRiazVvVmpBeE1WUkdVbk5PUjFKeVRWUkNhRmRJUWs1V1Z6RjZUVEZHV1dGSFJsZE5Sa3BSVm10b1QxZHNXbkpYYld4WFYwZFNSbFpJY0ZkU1ZUVlhVbTA1VkZORmNFWldNblJyVjFaa1ZWUnJlRlpWVkRBNVRVaGxYeTAzVUhWS1pDMW5TbnB0YWkxemNtMVlNbTVOT1VWMkxURkZaVW8yU2xvMGVUZDBSV0ZLU0dsTU9VOXZhM3BMTlY5U1QySk1RVFJaU1dzek0xQnNWa1ZXVmpablNuZEZRak5OVVRKZmVrdFlRa0V1VWpCR1JtRlZTblJVYmxwcFlsUkdiMWx0YUUxW
+fatal: credential url cannot be parsed: https://POETRY_PIP_NO_ISOLATE=1
+COLORTERM=truecolor
+POETRY_PIP_NO_PREFIX=1
+HISTCONTROL=ignoredups
+POETRY_PIP_USE_PIP_CACHE=1
+REPL_OWNER=mohammednv23158
+DATABASE_URL=postgresql://postgres:password@helium/heliumdb?sslmode=disable
+REPLIT_GITSAFE_NEW_REPLS_ENABLED=true
+NIXPKGS_ALLOW_UNFREE=1
+HISTSIZE=10000
+HOSTNAME=fdd78d59dab2
+__EGL_VENDOR_LIBRARY_FILENAMES=/nix/store/l4myp7qn0q9bqgmkqq4vnnii22ql1r68-mesa-25.0.7/share/glvnd/egl_vendor.d/50_mesa.json
+POETRY_INSTALLER_MODERN_INSTALLATION=1
+REPLIT_DOMAINS=c164cc0d-0a78-4013-99cf-7adda894ad47-00-2n3jdnr7k9rfr.pike.replit.dev
+LD_AUDIT=/nix/store/sj11ljhx4n79h9g0167f8lg8hp7n545m-replit_rtld_loader-1/rtld_loader.so
+PGPORT=5432
+XDG_DATA_HOME=/home/runner/workspace/.local/share
+REPL_OWNER_ID=34023585
+PGPASSWORD=password
+XDG_CONFIG_HOME=/home/runner/workspace/.config
+REPLIT_LD_AUDIT=/nix/store/sj11ljhx4n79h9g0167f8lg8hp7n545m-replit_rtld_loader-1/rtld_loader.so
+REPLIT_ARTIFACT_ROUTER=/nix/store/cznh1mf9257n1x7fnhawazimgdx3ivp3-artifact-router-0.1.0/bin/artifact-router
+REPLIT_CLI=/nix/store/cl8kzazapkhlviimpi96dkd083ycp89x-replit-cli-0.0.1/bin/replit
+GIT_CONFIG_GLOBAL=/run/replit/user/34023585/.config/git/config
+REPLIT_USER=mohammednv23158
+REPLIT_SUBCLUSTER=paid
+PWD=/home/runner/workspace
+NIX_PROFILES=/nix/var/nix/profiles/default /home/runner/.nix-profile
+REPLIT_DB_URL=https://kv.replit.com/v0/eyJhbGciOiJIUzUxMiIsImlzcyI6ImNvbm1hbiIsImtpZCI6InByb2Q6MSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjb25tYW4iLCJleHAiOjE3Nzg4NTAzMjEsImlhdCI6MTc3ODczODcyMSwiZGF0YWJhc2VfaWQiOiJjMTY0Y2MwZC0wYTc4LTQwMTMtOTljZi03YWRkYTg5NGFkNDcifQ.dh9ySGCuGZOK-mF0LKOlHqmNNkq50xm-kZCaRpIjUJq3BjN-F3NrDSyjG72FBiDebuMZzWPqAo19ihmr-8oipA
+REPLIT_SESSION=mohammednv23158-06x2
+NIX_PATH=nixpkgs=/home/runner/.nix-defexpr/channels/nixpkgs-stable-25_05:/home/runner/.nix-defexpr/channels
+REPLIT_EXPO_DEV_DOMAIN=c164cc0d-0a78-4013-99cf-7adda894ad47-00-2n3jdnr7k9rfr.expo.pike.replit.dev
+REPL_ID=c164cc0d-0a78-4013-99cf-7adda894ad47
+PIP_CONFIG_FILE=/nix/store/z0d7kvaycmw342xmz4xwwybm6p3p0zcs-pip.conf
+REPLIT_PYTHON_LD_LIBRARY_PATH=/nix/store/pya3p1ihjm446jpqpql93542cirqyn23-cpplibs/lib:/nix/store/c2qsgf2832zi4n29gfkqgkjpvmbmxam6-zlib-1.3.1/lib:/nix/store/f7rcazhd826xlcz43il4vafv28888cgj-glib-2.86.3/lib:/nix/store/ii3ybky5dqjikcrw7vdnh1j76ssy0ycm-libx11-1.8.12/lib:/nix/store/zshby6nalhw4mvap0rr97hv042808c2k-libxext-1.3.6/lib:/nix/store/0r6d7iw0q9wgxxj28zy87n1gjwvk0klp-libxinerama-1.1.5/lib:/nix/store/bb5xxw11ndww7iivcmdpxga9n1da24vg-libxcursor-1.2.3/lib:/nix/store/dyn0y5clf5b556yqwmj4841h43hz75p6-libxrandr-1.5.4/lib:/nix/store/x1f9a0qsj6a1y5nf178naagm2vbxnazc-libxi-1.8.2/lib:/nix/store/pv432a54y6di3n12iqix2dglkswvq1px-libxxf86vm-1.1.6/lib
+REPLIT_PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages:/nix/store/lxnbcmx15m3yascasf4c9qh7zk19pd2b-python3.11-setuptools-80.9.0/lib/python3.11/site-packages
+HOME=/home/runner
+LANG=en_US.UTF-8
+CONNECTORS_HOSTNAME=connectors.replit.com
+REPL_IDENTITY=v2.public.Q2lSak1UWTBZMk13WkMwd1lUYzRMVFF3TVRNdE9UbGpaaTAzWVdSa1lUZzVOR0ZrTkRjU0QyMXZhR0Z0YldWa2JuWXlNekUxT0JvUVEyRnRjSFZ6TFV4bFlYSnVMVWgxWWlJa1l6RTJOR05qTUdRdE1HRTNPQzAwTURFekxUazVZMll0TjJGa1pHRTRPVFJoWkRRM09LSFJuQkJhREFvRWNHbHJaUklFY0dGcFpBPT2cwjktIJKOlBczV9nQlh77B4_zuW1OaNP41rDzaU75ta2GcNnuMIRIAwcFzgM3U6wN_2zVHabi1z8f14wm9O4N.R0FFaUJtTnZibTFoYmhLUkNIWXlMbkIxWW14cFl5NVJNbVF6VTFkMGVtVldXWGRSVm14U1RWZGFjVmxVU2pOU1ZrNUZVVmRzYjJKSVJtMVZWVXB2VVRBMGRsUnVTbWxSVmtwMlVUQmtRbFpYUmt0YU1qbHlWMWh3Umsxck5VaFViWEJPVWpGR01GUlZaRVpOTURsRVRVUkNUbEpGVmpaVVJsSnlUbFpyZVZkWVVrOU5hMXB5VjJ0a1JrNUZPVlZWYldoaFVrWkZlbEl5YUVaVk1GRjVUVmhhYUZJd1dqQlpiR1JYWVRKS2RWZFliRTVsYTFWNFZEQktkbEpyT1V4VFJrcDFVV3RHYUZGdGJFcFNWMDVJWWtoS1lWVnRPVWhUTW1SVFpERnNXR0pIZEVwaGJGcDVWRmRyTVdReVVsaFRiazVvVmpBeE1WUkdVbk5PUjFKeVRWUkNhRmRJUWs1V1Z6RjZUVEZHV1dGSFJsZE5Sa3BSVm10b1QxZHNXbkpYYld4WFYwZFNSbFpJY0ZkU1ZUVlhVbTA1VkZORmNFWldNblJyVjFaa1ZWUnJlRlpWVkRBNVRVaGxYeTAzVUhWS1pDMW5TbnB0YWkxemNtMVlNbTVOT1VWMkxURkZaVW8yU2xvMGVUZDBSV0ZLU0dsTU9VOXZhM3BMTlY5U1QySk1RVFJaU1dzek0xQnNWa1ZXVmpablNuZEZRak5OVVRKZmVrdFlRa0V1VWpCR1JtRlZTblJVYmxwcFlsUkdiMWx0YUUxWmEwWjFWMWhzVFdK
+fatal: remote helper 'https' aborted session
+~/workspace$ ^C
+~/workspace$ 
